@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Multi Metronome</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Archivo+Black&display=swap');
@@ -165,12 +165,14 @@ select.mc-sel { background: var(--surface); border: 2px solid var(--border); col
 .modal-close:active { transform: translate(2px,2px); box-shadow: none; }
 
 .search-bar { display: flex; gap: 8px; padding: 12px 16px; border-bottom: 3px solid var(--border); flex-shrink: 0; }
+.search-input-wrap { flex: 1; position: relative; display: flex; align-items: center; }
+.search-input-wrap .search-input { width: 100%; padding-right: 30px; }
+.btn-clear { position: absolute; right: 6px; background: none; border: none; color: var(--muted); font-size: 13px; font-weight: 700; cursor: pointer; padding: 2px 4px; line-height: 1; }
+.btn-clear:hover { color: var(--text); }
 .search-input { flex: 1; background: var(--surface2); border: 2px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 0; font-size: 13px; outline: none; font-family: 'Space Mono', monospace; }
 .search-input:focus { border-color: var(--accent); }
 .search-input::placeholder { color: #bbb; }
-.btn-go { padding: 8px 16px; border-radius: 0; border: 2px solid var(--border); background: var(--accent); color: #fff; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; font-family: 'Space Mono', monospace; text-transform: uppercase; box-shadow: 3px 3px 0 #000; transition: transform .1s, box-shadow .1s; }
-.btn-go:active { transform: translate(2px,2px); box-shadow: none; }
-.btn-go:disabled { opacity: .45; cursor: not-allowed; }
+
 
 .search-results { overflow-y: auto; flex: 1; padding: 8px; }
 .result-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; cursor: pointer; border: 2px solid transparent; border-bottom: 2px solid var(--border); transition: background .1s; }
@@ -190,6 +192,7 @@ select.mc-sel { background: var(--surface); border: 2px solid var(--border); col
 .search-status { padding: 24px; text-align: center; color: var(--muted); font-size: 12px; line-height: 1.6; font-family: 'Space Mono', monospace; }
 .search-status.error { color: var(--accent); font-weight: 700; }
 .search-hint { font-size: 10px; color: #999; padding: 6px 16px 10px; text-align: center; font-family: 'Space Mono', monospace; text-transform: uppercase; letter-spacing: 1px; }
+
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: var(--surface2); }
@@ -328,9 +331,11 @@ select.mc-sel { background: var(--surface); border: 2px solid var(--border); col
       <button class="modal-close" onclick="closeSearch()">✕</button>
     </div>
     <div class="search-bar">
-      <input class="search-input" id="searchInput" type="text" placeholder="Song title or artist…"
-        onkeydown="if(event.key==='Enter') doSearch()" autocomplete="off" />
-      <button class="btn-go" id="searchBtn" onclick="doSearch()">Search</button>
+      <div class="search-input-wrap">
+        <input class="search-input" id="searchInput" type="text" placeholder="Song title or artist…"
+          oninput="liveSearch()" autocomplete="off" />
+        <button class="btn-clear" id="searchClear" onclick="clearSearch()" style="display:none">✕</button>
+      </div>
     </div>
     <div class="search-hint" id="searchHint"></div>
     <div class="search-results" id="searchResults">
@@ -1129,6 +1134,511 @@ const BPM_DB = [
   {t:"Big Shot",a:"Billy Joel",bpm:136},
   {t:"Tell Her About It",a:"Billy Joel",bpm:136},
   {t:"An Innocent Man",a:"Billy Joel",bpm:132},
+  // George Michael / Wham!
+  {t:"Careless Whisper",a:"George Michael",bpm:66},
+  {t:"Faith",a:"George Michael",bpm:96},
+  {t:"Father Figure",a:"George Michael",bpm:66},
+  {t:"One More Try",a:"George Michael",bpm:60},
+  {t:"Fast Love",a:"George Michael",bpm:104},
+  {t:"Wake Me Up Before You Go-Go",a:"Wham!",bpm:156},
+  {t:"Last Christmas",a:"Wham!",bpm:108},
+  {t:"Club Tropicana",a:"Wham!",bpm:128},
+  {t:"Everything She Wants",a:"Wham!",bpm:100},
+  // Pet Shop Boys
+  {t:"West End Girls",a:"Pet Shop Boys",bpm:100},
+  {t:"It's a Sin",a:"Pet Shop Boys",bpm:136},
+  {t:"Always on My Mind",a:"Pet Shop Boys",bpm:112},
+  {t:"Go West",a:"Pet Shop Boys",bpm:124},
+  {t:"What Have I Done to Deserve This?",a:"Pet Shop Boys",bpm:112},
+  {t:"Opportunities",a:"Pet Shop Boys",bpm:126},
+  // Kanye West
+  {t:"Gold Digger",a:"Kanye West",bpm:112},
+  {t:"Stronger",a:"Kanye West",bpm:104},
+  {t:"Heartless",a:"Kanye West",bpm:78},
+  {t:"All Falls Down",a:"Kanye West",bpm:87},
+  {t:"Flashing Lights",a:"Kanye West",bpm:84},
+  {t:"Power",a:"Kanye West",bpm:90},
+  {t:"Runaway",a:"Kanye West",bpm:86},
+  // Jay-Z
+  {t:"99 Problems",a:"Jay-Z",bpm:93},
+  {t:"Empire State of Mind",a:"Jay-Z ft. Alicia Keys",bpm:86},
+  {t:"HOLY GRAIL",a:"Jay-Z ft. Justin Timberlake",bpm:68},
+  {t:"Run This Town",a:"Jay-Z ft. Rihanna & Kanye West",bpm:80},
+  // John Mayer
+  {t:"Your Body Is a Wonderland",a:"John Mayer",bpm:82},
+  {t:"Waiting on the World to Change",a:"John Mayer",bpm:98},
+  {t:"Gravity",a:"John Mayer",bpm:69},
+  {t:"Daughters",a:"John Mayer",bpm:72},
+  {t:"Slow Dancing in a Burning Room",a:"John Mayer",bpm:68},
+  {t:"Half of My Heart",a:"John Mayer",bpm:100},
+  // Jack Johnson
+  {t:"Banana Pancakes",a:"Jack Johnson",bpm:92},
+  {t:"Better Together",a:"Jack Johnson",bpm:112},
+  {t:"Upside Down",a:"Jack Johnson",bpm:102},
+  {t:"Sitting, Waiting, Wishing",a:"Jack Johnson",bpm:112},
+  // Jason Mraz
+  {t:"I'm Yours",a:"Jason Mraz",bpm:96},
+  {t:"I Won't Give Up",a:"Jason Mraz",bpm:66},
+  {t:"Lucky",a:"Jason Mraz",bpm:112},
+  // James Taylor
+  {t:"You've Got a Friend",a:"James Taylor",bpm:72},
+  {t:"Fire and Rain",a:"James Taylor",bpm:70},
+  {t:"How Sweet It Is",a:"James Taylor",bpm:118},
+  {t:"Carolina in My Mind",a:"James Taylor",bpm:130},
+  // Cat Stevens / Yusuf
+  {t:"Wild World",a:"Cat Stevens",bpm:74},
+  {t:"Father and Son",a:"Cat Stevens",bpm:80},
+  {t:"The First Cut Is the Deepest",a:"Cat Stevens",bpm:96},
+  {t:"Moonshadow",a:"Cat Stevens",bpm:130},
+  {t:"Peace Train",a:"Cat Stevens",bpm:126},
+  // Joni Mitchell
+  {t:"Big Yellow Taxi",a:"Joni Mitchell",bpm:132},
+  {t:"Both Sides Now",a:"Joni Mitchell",bpm:74},
+  {t:"River",a:"Joni Mitchell",bpm:76},
+  {t:"A Case of You",a:"Joni Mitchell",bpm:76},
+  {t:"Help Me",a:"Joni Mitchell",bpm:118},
+  // Leonard Cohen
+  {t:"Hallelujah",a:"Leonard Cohen",bpm:64},
+  {t:"Suzanne",a:"Leonard Cohen",bpm:76},
+  {t:"Bird on the Wire",a:"Leonard Cohen",bpm:70},
+  {t:"Everybody Knows",a:"Leonard Cohen",bpm:88},
+  {t:"Dance Me to the End of Love",a:"Leonard Cohen",bpm:112},
+  // Mumford & Sons
+  {t:"Little Lion Man",a:"Mumford & Sons",bpm:184},
+  {t:"The Cave",a:"Mumford & Sons",bpm:212},
+  {t:"I Will Wait",a:"Mumford & Sons",bpm:148},
+  {t:"Lover of the Light",a:"Mumford & Sons",bpm:140},
+  {t:"Awake My Soul",a:"Mumford & Sons",bpm:136},
+  // Franz Ferdinand
+  {t:"Take Me Out",a:"Franz Ferdinand",bpm:104},
+  {t:"Do You Want To",a:"Franz Ferdinand",bpm:148},
+  {t:"Eleanor Put Your Boots On",a:"Franz Ferdinand",bpm:126},
+  {t:"This Fire",a:"Franz Ferdinand",bpm:148},
+  {t:"Walk Away",a:"Franz Ferdinand",bpm:136},
+  // Kaiser Chiefs
+  {t:"Ruby",a:"Kaiser Chiefs",bpm:148},
+  {t:"I Predict a Riot",a:"Kaiser Chiefs",bpm:164},
+  {t:"Everyday I Love You Less and Less",a:"Kaiser Chiefs",bpm:134},
+  {t:"Na Na Na Na Naa",a:"Kaiser Chiefs",bpm:138},
+  // Snow Patrol
+  {t:"Chasing Cars",a:"Snow Patrol",bpm:104},
+  {t:"Run",a:"Snow Patrol",bpm:72},
+  {t:"Open Your Eyes",a:"Snow Patrol",bpm:132},
+  {t:"Chocolate",a:"Snow Patrol",bpm:140},
+  {t:"Hands Open",a:"Snow Patrol",bpm:138},
+  // Keane
+  {t:"Somewhere Only We Know",a:"Keane",bpm:76},
+  {t:"Everybody's Changing",a:"Keane",bpm:132},
+  {t:"Bedshaped",a:"Keane",bpm:76},
+  {t:"Is It Any Wonder?",a:"Keane",bpm:132},
+  // Stereophonics
+  {t:"Have a Nice Day",a:"Stereophonics",bpm:130},
+  {t:"Dakota",a:"Stereophonics",bpm:148},
+  {t:"Maybe Tomorrow",a:"Stereophonics",bpm:86},
+  {t:"The Bartender and the Thief",a:"Stereophonics",bpm:160},
+  // Travis
+  {t:"Why Does It Always Rain on Me?",a:"Travis",bpm:138},
+  {t:"Sing",a:"Travis",bpm:72},
+  {t:"Writing to Reach You",a:"Travis",bpm:138},
+  {t:"Turn",a:"Travis",bpm:130},
+  // The Jam
+  {t:"Town Called Malice",a:"The Jam",bpm:136},
+  {t:"Going Underground",a:"The Jam",bpm:142},
+  {t:"That's Entertainment",a:"The Jam",bpm:88},
+  {t:"The Eton Rifles",a:"The Jam",bpm:152},
+  {t:"English Rose",a:"The Jam",bpm:84},
+  // Massive Attack
+  {t:"Teardrop",a:"Massive Attack",bpm:82},
+  {t:"Unfinished Sympathy",a:"Massive Attack",bpm:94},
+  {t:"Safe from Harm",a:"Massive Attack",bpm:92},
+  {t:"Angel",a:"Massive Attack",bpm:70},
+  // Portishead
+  {t:"Glory Box",a:"Portishead",bpm:64},
+  {t:"Sour Times",a:"Portishead",bpm:98},
+  {t:"The Rip",a:"Portishead",bpm:68},
+  {t:"Roads",a:"Portishead",bpm:66},
+  // Bjork
+  {t:"Human Behaviour",a:"Björk",bpm:88},
+  {t:"Army of Me",a:"Björk",bpm:110},
+  {t:"Hyperballad",a:"Björk",bpm:134},
+  {t:"Jóga",a:"Björk",bpm:80},
+  {t:"Venus as a Boy",a:"Björk",bpm:82},
+  // Prodigy
+  {t:"Firestarter",a:"The Prodigy",bpm:138},
+  {t:"Breathe",a:"The Prodigy",bpm:136},
+  {t:"Smack My Bitch Up",a:"The Prodigy",bpm:138},
+  {t:"Out of Space",a:"The Prodigy",bpm:142},
+  // Chemical Brothers
+  {t:"Block Rockin' Beats",a:"The Chemical Brothers",bpm:102},
+  {t:"Setting Sun",a:"The Chemical Brothers",bpm:94},
+  {t:"Hey Boy Hey Girl",a:"The Chemical Brothers",bpm:138},
+  {t:"Galvanize",a:"The Chemical Brothers",bpm:100},
+  // Moby
+  {t:"Porcelain",a:"Moby",bpm:98},
+  {t:"Why Does My Heart Feel So Bad?",a:"Moby",bpm:96},
+  {t:"Natural Blues",a:"Moby",bpm:86},
+  {t:"Extreme Ways",a:"Moby",bpm:116},
+  // Of Monsters and Men
+  {t:"Little Talks",a:"Of Monsters and Men",bpm:98},
+  {t:"Mountain Sound",a:"Of Monsters and Men",bpm:140},
+  {t:"Dirty Paws",a:"Of Monsters and Men",bpm:160},
+  {t:"King of Anything",a:"Of Monsters and Men",bpm:118},
+  // Passenger
+  {t:"Let Her Go",a:"Passenger",bpm:75},
+  {t:"Hearts on Fire",a:"Passenger",bpm:76},
+  {t:"Scare Away the Dark",a:"Passenger",bpm:138},
+  // Lewis Capaldi
+  {t:"Someone You Loved",a:"Lewis Capaldi",bpm:109},
+  {t:"Before You Go",a:"Lewis Capaldi",bpm:76},
+  {t:"Bruises",a:"Lewis Capaldi",bpm:76},
+  {t:"Hold Me While You Wait",a:"Lewis Capaldi",bpm:80},
+  // George Ezra
+  {t:"Budapest",a:"George Ezra",bpm:104},
+  {t:"Barcelona",a:"George Ezra",bpm:96},
+  {t:"Shotgun",a:"George Ezra",bpm:104},
+  {t:"Blame It on Me",a:"George Ezra",bpm:136},
+  // Bastille
+  {t:"Pompeii",a:"Bastille",bpm:126},
+  {t:"Things We Lost in the Fire",a:"Bastille",bpm:128},
+  {t:"Flaws",a:"Bastille",bpm:88},
+  {t:"Of the Night",a:"Bastille",bpm:132},
+  // Clean Bandit
+  {t:"Rather Be",a:"Clean Bandit",bpm:124},
+  {t:"Rockabye",a:"Clean Bandit",bpm:100},
+  {t:"Symphony",a:"Clean Bandit",bpm:122},
+  {t:"Stronger",a:"Clean Bandit ft. Zara Larsson",bpm:128},
+  // Paolo Nutini
+  {t:"Candy",a:"Paolo Nutini",bpm:64},
+  {t:"New Shoes",a:"Paolo Nutini",bpm:128},
+  {t:"Iron Sky",a:"Paolo Nutini",bpm:70},
+  {t:"Last Request",a:"Paolo Nutini",bpm:66},
+  // Dermot Kennedy
+  {t:"Outnumbered",a:"Dermot Kennedy",bpm:82},
+  {t:"Giants",a:"Dermot Kennedy",bpm:76},
+  {t:"Power Over Me",a:"Dermot Kennedy",bpm:86},
+  // James Arthur
+  {t:"Say You Won't Let Go",a:"James Arthur",bpm:90},
+  {t:"Impossible",a:"James Arthur",bpm:76},
+  {t:"Safe Inside",a:"James Arthur",bpm:76},
+  // Take That / Westlife
+  {t:"Back for Good",a:"Take That",bpm:90},
+  {t:"Never Forget",a:"Take That",bpm:106},
+  {t:"Shine",a:"Take That",bpm:120},
+  {t:"Swear It Again",a:"Westlife",bpm:70},
+  {t:"Flying Without Wings",a:"Westlife",bpm:66},
+  {t:"You Raise Me Up",a:"Westlife",bpm:60},
+  // Craig David
+  {t:"Fill Me In",a:"Craig David",bpm:96},
+  {t:"7 Days",a:"Craig David",bpm:82},
+  {t:"Re-Rewind",a:"Craig David & Artful Dodger",bpm:105},
+  // Radiohead (more)
+  {t:"Karma Police",a:"Radiohead",bpm:76},
+  {t:"Paranoid Android",a:"Radiohead",bpm:82},
+  {t:"Fake Plastic Trees",a:"Radiohead",bpm:72},
+  {t:"High and Dry",a:"Radiohead",bpm:87},
+  {t:"No Surprises",a:"Radiohead",bpm:76},
+  {t:"Exit Music (For a Film)",a:"Radiohead",bpm:76},
+  {t:"Just",a:"Radiohead",bpm:152},
+  // INXS
+  {t:"Need You Tonight",a:"INXS",bpm:120},
+  {t:"Never Tear Us Apart",a:"INXS",bpm:72},
+  {t:"Devil Inside",a:"INXS",bpm:112},
+  {t:"Don't Change",a:"INXS",bpm:136},
+  {t:"New Sensation",a:"INXS",bpm:126},
+  {t:"What You Need",a:"INXS",bpm:116},
+  // The Smiths / Morrissey
+  {t:"There Is a Light That Never Goes Out",a:"The Smiths",bpm:108},
+  {t:"This Charming Man",a:"The Smiths",bpm:146},
+  {t:"How Soon Is Now?",a:"The Smiths",bpm:76},
+  {t:"Girlfriend in a Coma",a:"The Smiths",bpm:130},
+  {t:"Please Please Please Let Me Get What I Want",a:"The Smiths",bpm:80},
+  {t:"The Boy with the Thorn in His Side",a:"The Smiths",bpm:120},
+  // New Order / Joy Division
+  {t:"Blue Monday",a:"New Order",bpm:130},
+  {t:"Bizarre Love Triangle",a:"New Order",bpm:116},
+  {t:"True Faith",a:"New Order",bpm:114},
+  {t:"Love Will Tear Us Apart",a:"Joy Division",bpm:145},
+  {t:"She's Lost Control",a:"Joy Division",bpm:132},
+  {t:"Atmosphere",a:"Joy Division",bpm:70},
+  // Peter Gabriel
+  {t:"Sledgehammer",a:"Peter Gabriel",bpm:96},
+  {t:"In Your Eyes",a:"Peter Gabriel",bpm:106},
+  {t:"Solsbury Hill",a:"Peter Gabriel",bpm:138},
+  {t:"Don't Give Up",a:"Peter Gabriel",bpm:66},
+  {t:"Shock the Monkey",a:"Peter Gabriel",bpm:110},
+  {t:"Big Time",a:"Peter Gabriel",bpm:110},
+  // Alanis Morissette
+  {t:"You Oughta Know",a:"Alanis Morissette",bpm:112},
+  {t:"Ironic",a:"Alanis Morissette",bpm:95},
+  {t:"Hand in My Pocket",a:"Alanis Morissette",bpm:108},
+  {t:"Head Over Feet",a:"Alanis Morissette",bpm:86},
+  {t:"Thank U",a:"Alanis Morissette",bpm:96},
+  {t:"All I Really Want",a:"Alanis Morissette",bpm:138},
+  // Spice Girls
+  {t:"Wannabe",a:"Spice Girls",bpm:110},
+  {t:"Say You'll Be There",a:"Spice Girls",bpm:104},
+  {t:"2 Become 1",a:"Spice Girls",bpm:65},
+  {t:"Spice Up Your Life",a:"Spice Girls",bpm:132},
+  {t:"Stop",a:"Spice Girls",bpm:100},
+  // Robbie Williams
+  {t:"Angels",a:"Robbie Williams",bpm:72},
+  {t:"Feel",a:"Robbie Williams",bpm:76},
+  {t:"Rock DJ",a:"Robbie Williams",bpm:110},
+  {t:"Let Me Entertain You",a:"Robbie Williams",bpm:140},
+  {t:"Come Undone",a:"Robbie Williams",bpm:86},
+  {t:"Millennium",a:"Robbie Williams",bpm:86},
+  {t:"She's the One",a:"Robbie Williams",bpm:76},
+  // Mariah Carey
+  {t:"All I Want for Christmas Is You",a:"Mariah Carey",bpm:150},
+  {t:"Hero",a:"Mariah Carey",bpm:64},
+  {t:"We Belong Together",a:"Mariah Carey",bpm:64},
+  {t:"Fantasy",a:"Mariah Carey",bpm:100},
+  {t:"Emotions",a:"Mariah Carey",bpm:128},
+  {t:"Always Be My Baby",a:"Mariah Carey",bpm:62},
+  // Celine Dion
+  {t:"My Heart Will Go On",a:"Celine Dion",bpm:66},
+  {t:"The Power of Love",a:"Celine Dion",bpm:66},
+  {t:"Think Twice",a:"Celine Dion",bpm:64},
+  {t:"Because You Loved Me",a:"Celine Dion",bpm:64},
+  {t:"I'm Alive",a:"Celine Dion",bpm:126},
+  // Tina Turner
+  {t:"What's Love Got to Do with It",a:"Tina Turner",bpm:108},
+  {t:"Simply the Best",a:"Tina Turner",bpm:128},
+  {t:"Private Dancer",a:"Tina Turner",bpm:92},
+  {t:"The Best",a:"Tina Turner",bpm:128},
+  {t:"Proud Mary",a:"Tina Turner",bpm:92},
+  {t:"We Don't Need Another Hero",a:"Tina Turner",bpm:84},
+  // Tracy Chapman
+  {t:"Fast Car",a:"Tracy Chapman",bpm:100},
+  {t:"Give Me One Reason",a:"Tracy Chapman",bpm:100},
+  {t:"Talkin' 'Bout a Revolution",a:"Tracy Chapman",bpm:96},
+  {t:"Baby Can I Hold You",a:"Tracy Chapman",bpm:66},
+  // Crowded House
+  {t:"Don't Dream It's Over",a:"Crowded House",bpm:104},
+  {t:"Something So Strong",a:"Crowded House",bpm:144},
+  {t:"Weather With You",a:"Crowded House",bpm:120},
+  {t:"Fall at Your Feet",a:"Crowded House",bpm:90},
+  // Roxette
+  {t:"The Look",a:"Roxette",bpm:134},
+  {t:"It Must Have Been Love",a:"Roxette",bpm:68},
+  {t:"Listen to Your Heart",a:"Roxette",bpm:66},
+  {t:"Joyride",a:"Roxette",bpm:130},
+  {t:"Dangerous",a:"Roxette",bpm:126},
+  // ELO (Electric Light Orchestra)
+  {t:"Mr. Blue Sky",a:"Electric Light Orchestra",bpm:130},
+  {t:"Don't Bring Me Down",a:"Electric Light Orchestra",bpm:132},
+  {t:"Evil Woman",a:"Electric Light Orchestra",bpm:104},
+  {t:"Livin' Thing",a:"Electric Light Orchestra",bpm:136},
+  {t:"Hold On Tight",a:"Electric Light Orchestra",bpm:140},
+  {t:"Telephone Line",a:"Electric Light Orchestra",bpm:72},
+  // Supertramp
+  {t:"Breakfast in America",a:"Supertramp",bpm:108},
+  {t:"Dreamer",a:"Supertramp",bpm:106},
+  {t:"The Logical Song",a:"Supertramp",bpm:116},
+  {t:"Give a Little Bit",a:"Supertramp",bpm:132},
+  {t:"Bloody Well Right",a:"Supertramp",bpm:128},
+  // Meat Loaf
+  {t:"Bat Out of Hell",a:"Meat Loaf",bpm:96},
+  {t:"I'd Do Anything for Love",a:"Meat Loaf",bpm:62},
+  {t:"Two Out of Three Ain't Bad",a:"Meat Loaf",bpm:68},
+  {t:"Dead Ringer for Love",a:"Meat Loaf",bpm:142},
+  // Bonnie Tyler
+  {t:"Total Eclipse of the Heart",a:"Bonnie Tyler",bpm:96},
+  {t:"Holding Out for a Hero",a:"Bonnie Tyler",bpm:128},
+  {t:"It's a Heartache",a:"Bonnie Tyler",bpm:108},
+  // Shania Twain
+  {t:"Man! I Feel Like a Woman!",a:"Shania Twain",bpm:128},
+  {t:"You're Still the One",a:"Shania Twain",bpm:72},
+  {t:"That Don't Impress Me Much",a:"Shania Twain",bpm:116},
+  {t:"From This Moment On",a:"Shania Twain",bpm:66},
+  // Backstreet Boys / *NSYNC
+  {t:"I Want It That Way",a:"Backstreet Boys",bpm:100},
+  {t:"Everybody (Backstreet's Back)",a:"Backstreet Boys",bpm:136},
+  {t:"Quit Playing Games",a:"Backstreet Boys",bpm:100},
+  {t:"As Long as You Love Me",a:"Backstreet Boys",bpm:100},
+  {t:"Bye Bye Bye",a:"NSYNC",bpm:172},
+  {t:"It's Gonna Be Me",a:"NSYNC",bpm:124},
+  {t:"Tearin' Up My Heart",a:"NSYNC",bpm:132},
+  // Ace of Base
+  {t:"The Sign",a:"Ace of Base",bpm:120},
+  {t:"All That She Wants",a:"Ace of Base",bpm:108},
+  {t:"Don't Turn Around",a:"Ace of Base",bpm:118},
+  {t:"Beautiful Life",a:"Ace of Base",bpm:130},
+  // MIDNIGHT OIL
+  {t:"Beds Are Burning",a:"Midnight Oil",bpm:126},
+  {t:"The Dead Heart",a:"Midnight Oil",bpm:128},
+  {t:"Blue Sky Mine",a:"Midnight Oil",bpm:120},
+  // Crowded House already done above
+  // Squeeze
+  {t:"Up the Junction",a:"Squeeze",bpm:136},
+  {t:"Cool for Cats",a:"Squeeze",bpm:148},
+  {t:"Tempted",a:"Squeeze",bpm:110},
+  {t:"Black Coffee in Bed",a:"Squeeze",bpm:130},
+  // Dolly Parton
+  {t:"Jolene",a:"Dolly Parton",bpm:128},
+  {t:"9 to 5",a:"Dolly Parton",bpm:188},
+  {t:"I Will Always Love You",a:"Dolly Parton",bpm:66},
+  {t:"Coat of Many Colors",a:"Dolly Parton",bpm:116},
+  // The Cranberries
+  {t:"Zombie",a:"The Cranberries",bpm:84},
+  {t:"Linger",a:"The Cranberries",bpm:80},
+  {t:"Dreams",a:"The Cranberries",bpm:92},
+  {t:"Ode to My Family",a:"The Cranberries",bpm:86},
+  {t:"Animal Instinct",a:"The Cranberries",bpm:112},
+  // Gwen Stefani / No Doubt
+  {t:"Hollaback Girl",a:"Gwen Stefani",bpm:110},
+  {t:"Rich Girl",a:"Gwen Stefani",bpm:118},
+  {t:"Just a Girl",a:"No Doubt",bpm:166},
+  {t:"Don't Speak",a:"No Doubt",bpm:76},
+  {t:"Underneath It All",a:"No Doubt",bpm:76},
+  {t:"Hey Baby",a:"No Doubt",bpm:112},
+  {t:"Spiderwebs",a:"No Doubt",bpm:132},
+  // Scorpions
+  {t:"Wind of Change",a:"Scorpions",bpm:76},
+  {t:"Rock You Like a Hurricane",a:"Scorpions",bpm:124},
+  {t:"Still Loving You",a:"Scorpions",bpm:58},
+  {t:"No One Like You",a:"Scorpions",bpm:126},
+  {t:"Send Me an Angel",a:"Scorpions",bpm:72},
+  {t:"Always Somewhere",a:"Scorpions",bpm:68},
+  {t:"Blackout",a:"Scorpions",bpm:148},
+  // Santana
+  {t:"Smooth",a:"Santana ft. Rob Thomas",bpm:114},
+  {t:"Maria Maria",a:"Santana",bpm:90},
+  {t:"Oye Como Va",a:"Santana",bpm:126},
+  {t:"Black Magic Woman",a:"Santana",bpm:102},
+  {t:"Evil Ways",a:"Santana",bpm:108},
+  {t:"Samba Pa Ti",a:"Santana",bpm:72},
+  // Duran Duran
+  {t:"Hungry Like the Wolf",a:"Duran Duran",bpm:134},
+  {t:"Girls on Film",a:"Duran Duran",bpm:124},
+  {t:"Rio",a:"Duran Duran",bpm:120},
+  {t:"The Reflex",a:"Duran Duran",bpm:120},
+  {t:"A View to a Kill",a:"Duran Duran",bpm:130},
+  {t:"Ordinary World",a:"Duran Duran",bpm:86},
+  // Eurythmics
+  {t:"Sweet Dreams (Are Made of This)",a:"Eurythmics",bpm:125},
+  {t:"Here Comes the Rain Again",a:"Eurythmics",bpm:100},
+  {t:"Would I Lie to You",a:"Eurythmics",bpm:126},
+  {t:"There Must Be an Angel",a:"Eurythmics",bpm:104},
+  {t:"Sisters Are Doin' It for Themselves",a:"Eurythmics",bpm:116},
+  // Tears for Fears
+  {t:"Everybody Wants to Rule the World",a:"Tears for Fears",bpm:116},
+  {t:"Shout",a:"Tears for Fears",bpm:114},
+  {t:"Mad World",a:"Tears for Fears",bpm:88},
+  {t:"Head Over Heels",a:"Tears for Fears",bpm:120},
+  {t:"Sowing the Seeds of Love",a:"Tears for Fears",bpm:104},
+  // Culture Club
+  {t:"Karma Chameleon",a:"Culture Club",bpm:108},
+  {t:"Do You Really Want to Hurt Me",a:"Culture Club",bpm:88},
+  {t:"Church of the Poison Mind",a:"Culture Club",bpm:158},
+  {t:"It's a Miracle",a:"Culture Club",bpm:126},
+  // Human League
+  {t:"Don't You Want Me",a:"Human League",bpm:116},
+  {t:"(Keep Feeling) Fascination",a:"Human League",bpm:126},
+  {t:"Human",a:"Human League",bpm:96},
+  // Soft Cell
+  {t:"Tainted Love",a:"Soft Cell",bpm:122},
+  {t:"Say Hello Wave Goodbye",a:"Soft Cell",bpm:78},
+  // UB40
+  {t:"Red Red Wine",a:"UB40",bpm:100},
+  {t:"Kingston Town",a:"UB40",bpm:88},
+  {t:"(I Can't Help) Falling in Love With You",a:"UB40",bpm:72},
+  // Simply Red
+  {t:"Stars",a:"Simply Red",bpm:92},
+  {t:"If You Don't Know Me by Now",a:"Simply Red",bpm:96},
+  {t:"Holding Back the Years",a:"Simply Red",bpm:76},
+  {t:"Something Got Me Started",a:"Simply Red",bpm:116},
+  // Robert Palmer
+  {t:"Addicted to Love",a:"Robert Palmer",bpm:112},
+  {t:"Simply Irresistible",a:"Robert Palmer",bpm:124},
+  {t:"I Didn't Mean to Turn You On",a:"Robert Palmer",bpm:112},
+  // Rick James
+  {t:"Super Freak",a:"Rick James",bpm:112},
+  {t:"Give It to Me Baby",a:"Rick James",bpm:108},
+  // Frankie Goes to Hollywood
+  {t:"Relax",a:"Frankie Goes to Hollywood",bpm:128},
+  {t:"Two Tribes",a:"Frankie Goes to Hollywood",bpm:134},
+  {t:"The Power of Love",a:"Frankie Goes to Hollywood",bpm:66},
+  // Deep Purple
+  {t:"Smoke on the Water",a:"Deep Purple",bpm:112},
+  {t:"Highway Star",a:"Deep Purple",bpm:170},
+  {t:"Child in Time",a:"Deep Purple",bpm:68},
+  {t:"Black Night",a:"Deep Purple",bpm:140},
+  {t:"Space Truckin'",a:"Deep Purple",bpm:144},
+  {t:"Perfect Strangers",a:"Deep Purple",bpm:96},
+  {t:"Hush",a:"Deep Purple",bpm:134},
+  {t:"Woman from Tokyo",a:"Deep Purple",bpm:132},
+  // James Blunt
+  {t:"You're Beautiful",a:"James Blunt",bpm:76},
+  {t:"Goodbye My Lover",a:"James Blunt",bpm:66},
+  {t:"1973",a:"James Blunt",bpm:126},
+  {t:"Same Mistake",a:"James Blunt",bpm:72},
+  {t:"Bonfire Heart",a:"James Blunt",bpm:126},
+  {t:"Cry",a:"James Blunt",bpm:68},
+  // Kate Bush (missing)
+  {t:"James and the Cold Gun",a:"Kate Bush",bpm:148},
+  {t:"The Man with the Child in His Eyes",a:"Kate Bush",bpm:63},
+  {t:"Army Dreamers",a:"Kate Bush",bpm:92},
+  {t:"Breathing",a:"Kate Bush",bpm:76},
+  {t:"Sat in Your Lap",a:"Kate Bush",bpm:164},
+  // Def Leppard
+  {t:"Pour Some Sugar on Me",a:"Def Leppard",bpm:124},
+  {t:"Love Bites",a:"Def Leppard",bpm:60},
+  {t:"Animal",a:"Def Leppard",bpm:122},
+  {t:"Photograph",a:"Def Leppard",bpm:122},
+  {t:"Rock of Ages",a:"Def Leppard",bpm:136},
+  {t:"Hysteria",a:"Def Leppard",bpm:94},
+  // Whitesnake
+  {t:"Here I Go Again",a:"Whitesnake",bpm:112},
+  {t:"Is This Love",a:"Whitesnake",bpm:66},
+  {t:"Still of the Night",a:"Whitesnake",bpm:90},
+  {t:"Fool for Your Loving",a:"Whitesnake",bpm:128},
+  // Thin Lizzy
+  {t:"The Boys Are Back in Town",a:"Thin Lizzy",bpm:138},
+  {t:"Jailbreak",a:"Thin Lizzy",bpm:148},
+  {t:"Whiskey in the Jar",a:"Thin Lizzy",bpm:136},
+  {t:"Cowboy Song",a:"Thin Lizzy",bpm:96},
+  {t:"Dancing in the Moonlight",a:"Thin Lizzy",bpm:148},
+  // Foreigner
+  {t:"I Want to Know What Love Is",a:"Foreigner",bpm:66},
+  {t:"Cold as Ice",a:"Foreigner",bpm:130},
+  {t:"Feels Like the First Time",a:"Foreigner",bpm:144},
+  {t:"Urgent",a:"Foreigner",bpm:116},
+  {t:"Juke Box Hero",a:"Foreigner",bpm:136},
+  // Rod Stewart
+  {t:"Maggie May",a:"Rod Stewart",bpm:126},
+  {t:"Do Ya Think I'm Sexy",a:"Rod Stewart",bpm:120},
+  {t:"Sailing",a:"Rod Stewart",bpm:68},
+  {t:"Have I Told You Lately",a:"Rod Stewart",bpm:68},
+  {t:"Da Ya Think I'm Sexy",a:"Rod Stewart",bpm:120},
+  {t:"Hot Legs",a:"Rod Stewart",bpm:144},
+  // Status Quo
+  {t:"Rockin' All Over the World",a:"Status Quo",bpm:138},
+  {t:"Whatever You Want",a:"Status Quo",bpm:142},
+  {t:"Caroline",a:"Status Quo",bpm:148},
+  {t:"Down Down",a:"Status Quo",bpm:132},
+  // Steve Miller Band
+  {t:"The Joker",a:"Steve Miller Band",bpm:80},
+  {t:"Fly Like an Eagle",a:"Steve Miller Band",bpm:92},
+  {t:"Abracadabra",a:"Steve Miller Band",bpm:120},
+  {t:"Rock'n Me",a:"Steve Miller Band",bpm:132},
+  {t:"Jet Airliner",a:"Steve Miller Band",bpm:108},
+  // Steely Dan
+  {t:"Reelin' in the Years",a:"Steely Dan",bpm:138},
+  {t:"Rikki Don't Lose That Number",a:"Steely Dan",bpm:112},
+  {t:"Deacon Blues",a:"Steely Dan",bpm:60},
+  {t:"Do It Again",a:"Steely Dan",bpm:116},
+  {t:"Hey Nineteen",a:"Steely Dan",bpm:112},
+  // Chicago
+  {t:"25 or 6 to 4",a:"Chicago",bpm:136},
+  {t:"Saturday in the Park",a:"Chicago",bpm:116},
+  {t:"Hard to Say I'm Sorry",a:"Chicago",bpm:66},
+  {t:"If You Leave Me Now",a:"Chicago",bpm:76},
+  // Doobie Brothers
+  {t:"Long Train Runnin'",a:"The Doobie Brothers",bpm:114},
+  {t:"Listen to the Music",a:"The Doobie Brothers",bpm:108},
+  {t:"Black Water",a:"The Doobie Brothers",bpm:98},
+  {t:"What a Fool Believes",a:"The Doobie Brothers",bpm:112},
   // John Lennon
   {t:"Imagine",a:"John Lennon",bpm:76},
   {t:"Working Class Hero",a:"John Lennon",bpm:76},
@@ -1257,8 +1767,7 @@ function searchLocal(query) {
     return { ...song, score };
   })
   .filter(s => s.score > 10)
-  .sort((a, b) => b.score - a.score)
-  .slice(0, 10);
+  .sort((a, b) => b.score - a.score);
 }
 
 // ── CORE DATA ──
@@ -1446,64 +1955,47 @@ function closeSearch() {
   document.getElementById('searchModal').classList.remove('open');
   addedIds.clear();
 }
+function clearSearch() {
+  const inp = document.getElementById('searchInput');
+  inp.value = '';
+  inp.focus();
+  document.getElementById('searchClear').style.display = 'none';
+  document.getElementById('searchResults').innerHTML = '<div class="search-status">Search for a song to find its BPM</div>';
+  document.getElementById('searchHint').textContent = '';
+}
+function toggleClear() {
+  document.getElementById('searchClear').style.display =
+    document.getElementById('searchInput').value ? 'block' : 'none';
+}
+
 function handleOverlayClick(e) {
   if (e.target === document.getElementById('searchModal')) closeSearch();
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSearch(); });
 
-async function doSearch() {
+let _searchTimer = null;
+function liveSearch() {
+  toggleClear();
+  clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(doSearch, 150);
+}
+function doSearch() {
   const query = document.getElementById('searchInput').value.trim();
-  if (!query) return;
-
-  const btn = document.getElementById('searchBtn');
   const resultsEl = document.getElementById('searchResults');
   const hintEl = document.getElementById('searchHint');
-  btn.disabled = true; btn.textContent = '…';
-  resultsEl.innerHTML = '<div class="search-status">Searching…</div>';
-  hintEl.textContent = '';
-
-  // 1. Search local BPM database first (instant)
-  const localResults = searchLocal(query);
-
-  // 2. Try GetSongBPM if API key is set (live results beyond the built-in DB)
-  let liveResults = [];
-  if (GETSONGBPM_API_KEY !== 'YOUR_API_KEY_HERE') {
-    try {
-      const url = `https://api.getsongbpm.com/search/?api_key=${GETSONGBPM_API_KEY}&type=both&lookup=${encodeURIComponent(query)}`;
-      const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        const songs = data.search || [];
-        for (const song of songs) {
-          const bpm = Math.round(parseFloat(song.tempo));
-          const title = song.song_title || song.title || '';
-          const artist = song.artist?.name || song.artist_name || '';
-          if (!bpm || !title) continue;
-          if (!localResults.find(r => normalize(r.t) === normalize(title))) {
-            liveResults.push({ t: title, a: artist, bpm });
-          }
-        }
-      }
-    } catch (e) { /* fail silently */ }
+  if (!query) {
+    resultsEl.innerHTML = '<div class="search-status">Search for a song to find its BPM</div>';
+    hintEl.textContent = '';
+    return;
   }
-
-  // Merge and dedupe
-  const allResults = [...localResults];
-  for (const r of liveResults) {
-    if (!allResults.find(x => normalize(x.t) === normalize(r.t))) allResults.push(r);
-  }
-
+  const allResults = searchLocal(query);
   if (!allResults.length) {
-    resultsEl.innerHTML = `<div class="search-status">
-      No results found for "<strong>${escapeHTML(query)}</strong>".<br>
-      Try searching by song title or artist name.
-    </div>`;
+    resultsEl.innerHTML = `<div class="search-status">No results for "<strong>${escapeHTML(query)}</strong>".<br>Try a different title or artist.</div>`;
+    hintEl.textContent = '';
   } else {
     resultsEl.innerHTML = allResults.map((song, i) => buildResultItem(song, i)).join('');
     hintEl.textContent = `${allResults.length} result${allResults.length > 1 ? 's' : ''} found`;
   }
-
-  btn.disabled = false; btn.textContent = 'Search';
 }
 
 function buildResultItem(song, i) {
