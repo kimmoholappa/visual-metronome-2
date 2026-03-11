@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Visual Metronome</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Archivo+Black&display=swap');
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #f5f0e8;
+  --surface: #ffffff;
+  --surface2: #f0ebe0;
+  --border: #000000;
+  --accent: #ff3c5f;
+  --accent2: #ffe100;
+  --accent-glow: rgba(255,60,95,.3);
+  --text: #0a0a0a;
+  --muted: #555;
+  --shadow: 3px 3px 0px #000;
+  --shadow-lg: 5px 5px 0px #000;
+  --r: 0px;
+}
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Space Mono', monospace; }
+body { display: flex; flex-direction: column; overflow: hidden; }
+
+/* ── TOP BAR ── */
+.topbar { display: flex; align-items: center; padding: 10px 14px; background: var(--accent2); border-bottom: 3px solid var(--border); flex-shrink: 0; }
+.topbar h1 { font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--text); font-family: 'Archivo Black', sans-serif; line-height: 1.2; }
+
+.btn-add { display: flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 0; border: 2px solid var(--border); background: var(--accent); color: #fff; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; box-shadow: var(--shadow); font-family: 'Space Mono', monospace; text-transform: uppercase; letter-spacing: 1px; transition: transform .1s, box-shadow .1s; }
+.btn-add:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 #000; }
+.btn-search { display: flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 0; border: 2px solid var(--border); background: var(--surface); color: var(--text); font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; box-shadow: var(--shadow); font-family: 'Space Mono', monospace; text-transform: uppercase; letter-spacing: 1px; transition: transform .1s, box-shadow .1s; }
+.btn-search:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 #000; }
+
+/* ── METRO GRID ── */
+.metros { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; gap: 10px; color: var(--muted); font-size: 13px; text-align: center; font-family: 'Space Mono', monospace; }
+.empty-state span { font-size: 48px; }
+
+/* ── METRO CARD ── */
+.metro-card { background: var(--surface); border-radius: 0; border: 2px solid var(--border); overflow: visible; box-shadow: var(--shadow-lg); transition: box-shadow .1s, transform .1s; }
+.metro-card.playing { background: #fff8f9; box-shadow: 6px 6px 0 var(--accent); }
+.mc-body { display: flex; align-items: stretch; }
+
+/* ── LEFT COLUMN ── */
+.mc-left { width: 58%; flex-shrink: 0; border-right: 2px solid var(--border); padding: 0 12px; display: flex; align-items: center; justify-content: center; background: var(--surface2); }
+.mc-top { display: flex; align-items: center; gap: 8px; }
+.dot-area { position: relative; width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.dot-ring { position: absolute; inset: 0; border-radius: 50%; border: 2px solid var(--border); }
+.dot { width: 28px; height: 28px; border-radius: 50%; background: var(--text); border: 2px solid var(--border); }
+.dot.pulse   { animation: dp  .13s ease-out forwards; }
+.dot.pulse.b1{ animation: dp1 .13s ease-out forwards; }
+@keyframes dp  { 0%{transform:scale(1.7);box-shadow:0 0 0 4px rgba(255,60,95,.35)} 100%{transform:scale(1);box-shadow:none} }
+@keyframes dp1 { 0%{transform:scale(2); background: var(--accent); box-shadow:0 0 0 6px rgba(255,60,95,.4)} 100%{transform:scale(1);background:var(--text);box-shadow:none} }
+@keyframes tap-ring { 0%{box-shadow:0 0 0 0 rgba(255,60,95,.6)} 100%{box-shadow:0 0 0 10px rgba(255,60,95,0)} }
+.dot.tapped { animation: tap-ring .35s ease-out forwards; }
+.dot-area:active .dot { transform: scale(0.85); }
+
+.mc-inner { display: flex; flex-direction: column; gap: 8px; padding: 9px 0; width: 100%; }
+.bpm-group { flex: 1; display: flex; align-items: center; gap: 4px; container-type: inline-size; min-width: 0; overflow: hidden; }
+.bpm-val { font-size: 40px; font-weight: 700; line-height: 1; cursor: text; font-family: 'Archivo Black', sans-serif; white-space: nowrap; display: inline-block; transform-origin: left center; transition: transform .15s; }
+.bpm-val[contenteditable]:focus { outline: none; color: var(--accent); }
+@container (max-width: 100px) {
+  .bpm-val { transform: scaleX(0.72); margin-right: -28%; }
+}
+.bpm-unit { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; align-self: flex-end; margin-bottom: 4px; font-family: 'Space Mono', monospace; }
+.bpm-btns { display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; }
+.bpm-btn { width: 26px; height: 20px; border-radius: 0; border: 2px solid var(--border); background: var(--surface); color: var(--text); font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 2px 2px 0 #000; transition: transform .1s, box-shadow .1s; }
+.bpm-btn:active { transform: translate(2px,2px); box-shadow: none; }
+
+/* ── BEAT LINE ── */
+.beat-line {
+  display: grid;
+  width: 100%;
+  align-items: center;
+}
+.bl-pip {
+  width: 6px; height: 6px;
+  border-radius: 0;
+  background: #ccc;
+  justify-self: center;
+  align-self: center;
+  border: 1px solid #bbb;
+}
+.bl-pip.q { width: 9px; height: 9px; background: #999; border-color: #888; }
+.bl-pip.lit-q  { background: var(--text); border-color: var(--text); box-shadow: none; }
+.bl-pip.lit-q.b1 { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 2px rgba(255,60,95,.3); }
+.bl-pip.lit-e  { background: #555; border-color: #444; }
+.bl-pip.lit-s  { background: #777; border-color: #666; }
+.bl-pip.lit-t  { background: #666; border-color: #555; }
+
+/* ── RIGHT COLUMN ── */
+.mc-right { flex: 1; display: flex; flex-direction: column; justify-content: space-between; padding: 8px 10px; gap: 6px; min-width: 0; }
+.mc-header { display: flex; align-items: center; gap: 4px; border-bottom: 2px solid var(--border); padding-bottom: 6px; }
+.mc-name { flex: 1; background: none; border: none; color: var(--text); font-size: 11px; font-weight: 700; outline: none; min-width: 0; text-transform: uppercase; letter-spacing: 1px; font-family: 'Space Mono', monospace; }
+.mc-name::placeholder { color: #bbb; }
+.mc-name:focus { color: var(--accent); }
+.mc-del { background: none; border: 2px solid transparent; color: #bbb; font-size: 11px; cursor: pointer; padding: 1px 4px; font-weight: 700; }
+.mc-del:hover { color: var(--accent); border-color: var(--accent); }
+
+/* mc-opts: subdivisions + tap (top row) */
+.mc-opts { display: flex; align-items: center; gap: 5px; }
+.subdiv-btns { display: flex; gap: 3px; flex: 1; }
+.sdv { flex: 1; padding: 4px 6px; border-radius: 0; border: 2px solid var(--border); background: none; color: var(--muted); font-size: 11px; font-weight: 700; cursor: pointer; text-align: center; font-family: 'Space Mono', monospace; transition: transform .1s, box-shadow .1s; box-shadow: 2px 2px 0 #000; }
+.sdv:active { transform: translate(2px,2px); box-shadow: none; }
+.sdv.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+/* mc-footer: time sig + play (bottom row) */
+.mc-footer { display: flex; gap: 5px; align-items: stretch; }
+select.mc-sel { background: var(--surface); border: 2px solid var(--border); color: var(--text); padding: 4px 6px; border-radius: 0; font-size: 11px; cursor: pointer; flex-shrink: 0; font-family: 'Space Mono', monospace; font-weight: 700; box-shadow: 2px 2px 0 #000; }
+.btn-play { flex: 1; padding: 7px; border-radius: 0; border: 2px solid var(--border); font-size: 11px; font-weight: 700; cursor: pointer; background: var(--surface2); color: var(--text); font-family: 'Space Mono', monospace; text-transform: uppercase; letter-spacing: 1px; box-shadow: 2px 2px 0 #000; transition: transform .1s, box-shadow .1s, background .1s; display: flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap; overflow: hidden; }
+.btn-play:active { transform: translate(2px,2px); box-shadow: none; }
+.metro-card.playing .btn-play { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+
+
+/* sound toggle button */
+.btn-sound { background: none; border: 2px solid transparent; color: #bbb; font-size: 13px; cursor: pointer; padding: 1px 4px; font-weight: 700; transition: color .15s; flex-shrink: 0; }
+.btn-sound:hover { color: var(--text); }
+.btn-sound.on { color: var(--accent); border-color: var(--accent); }
+
+.mc-right { container-type: inline-size; }
+.play-label { display: inline; }
+@container (max-width: 140px) {
+  .play-label { display: none; }
+}
+
+/* ── FOOTER TOOLBAR ── */
+.toolbar { flex-shrink: 0; display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: var(--accent2); border-top: 3px solid var(--border); }
+.toolbar-attr { flex: 1; text-align: right; font-size: 9px; color: var(--text); font-family: 'Space Mono', monospace; text-transform: uppercase; letter-spacing: 1px; opacity: 0.6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.toolbar-attr a { color: inherit; text-decoration: underline; }
+
+/* ── MODALS ── */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 100; align-items: center; justify-content: center; padding: 16px; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--surface); border: 3px solid var(--border); border-radius: 0; width: 100%; max-width: 480px; max-height: 80vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 8px 8px 0 #000; animation: modalIn .15s ease-out; }
+@keyframes modalIn { from { transform: translate(8px,8px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.modal-header { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 3px solid var(--border); flex-shrink: 0; background: var(--accent2); }
+.modal-header h2 { font-size: 13px; font-weight: 700; flex: 1; text-transform: uppercase; letter-spacing: 2px; font-family: 'Archivo Black', sans-serif; }
+.modal-close { background: none; border: 2px solid var(--border); color: var(--text); font-size: 14px; font-weight: 700; cursor: pointer; padding: 2px 7px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; box-shadow: 2px 2px 0 #000; transition: transform .1s, box-shadow .1s; }
+.modal-close:active { transform: translate(2px,2px); box-shadow: none; }
+
+.search-bar { display: flex; gap: 8px; padding: 12px 16px; border-bottom: 3px solid var(--border); flex-shrink: 0; }
+.search-input { flex: 1; background: var(--surface2); border: 2px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 0; font-size: 13px; outline: none; font-family: 'Space Mono', monospace; }
+.search-input:focus { border-color: var(--accent); }
+.search-input::placeholder { color: #bbb; }
+.btn-go { padding: 8px 16px; border-radius: 0; border: 2px solid var(--border); background: var(--accent); color: #fff; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; font-family: 'Space Mono', monospace; text-transform: uppercase; box-shadow: 3px 3px 0 #000; transition: transform .1s, box-shadow .1s; }
+.btn-go:active { transform: translate(2px,2px); box-shadow: none; }
+.btn-go:disabled { opacity: .45; cursor: not-allowed; }
+
+.search-results { overflow-y: auto; flex: 1; padding: 8px; }
+.result-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; cursor: pointer; border: 2px solid transparent; border-bottom: 2px solid var(--border); transition: background .1s; }
+.result-item:last-child { border-bottom: 2px solid transparent; }
+.result-item:hover { background: var(--surface2); border-color: var(--border); }
+.result-info { flex: 1; min-width: 0; }
+.result-title { font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: uppercase; letter-spacing: 0.5px; }
+.result-artist { font-size: 10px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: 'Space Mono', monospace; }
+.result-bpm { display: flex; flex-direction: column; align-items: center; background: var(--accent2); border: 2px solid var(--border); border-radius: 0; padding: 4px 10px; flex-shrink: 0; min-width: 52px; box-shadow: 2px 2px 0 #000; }
+.result-bpm-val { font-size: 17px; font-weight: 700; line-height: 1; color: var(--text); font-family: 'Archivo Black', sans-serif; }
+.result-bpm-label { font-size: 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; font-family: 'Space Mono', monospace; }
+.result-add { background: none; border: 2px solid var(--border); color: var(--text); border-radius: 0; padding: 5px 10px; font-size: 11px; font-weight: 700; cursor: pointer; flex-shrink: 0; font-family: 'Space Mono', monospace; box-shadow: 2px 2px 0 #000; transition: transform .1s, box-shadow .1s, background .1s; }
+.result-add:hover { background: var(--text); color: var(--surface); }
+.result-add:active { transform: translate(2px,2px); box-shadow: none; }
+.result-add.added { background: #e8f5e9; color: #2e7d32; border-color: #2e7d32; box-shadow: 2px 2px 0 #2e7d32; cursor: default; }
+
+.search-status { padding: 24px; text-align: center; color: var(--muted); font-size: 12px; line-height: 1.6; font-family: 'Space Mono', monospace; }
+.search-status.error { color: var(--accent); font-weight: 700; }
+.search-hint { font-size: 10px; color: #999; padding: 6px 16px 10px; text-align: center; font-family: 'Space Mono', monospace; text-transform: uppercase; letter-spacing: 1px; }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--surface2); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 0; }
+
+/* ── SETTINGS MODAL ── */
+.settings-modal { max-width: 360px; }
+.settings-body { padding: 0; overflow-y: auto; }
+.setting-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 2px solid var(--border); }
+.setting-row:last-child { border-bottom: none; }
+.setting-label { font-size: 11px; font-weight: 700; color: var(--text); text-transform: uppercase; letter-spacing: 1px; font-family: 'Space Mono', monospace; }
+.setting-desc { font-size: 10px; color: var(--muted); margin-top: 3px; font-family: 'Space Mono', monospace; }
+.setting-control { flex-shrink: 0; }
+
+/* toggle switch — brutalist flat style */
+.toggle-wrap { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.toggle { position: relative; width: 42px; height: 24px; flex-shrink: 0; }
+.toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+.toggle-track { position: absolute; inset: 0; background: #ddd; border: 2px solid var(--border); border-radius: 0; transition: background .15s; box-shadow: 2px 2px 0 #000; }
+.toggle input:checked + .toggle-track { background: var(--accent); }
+.toggle-thumb { position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 0; background: #888; border: 1px solid #555; transition: transform .15s, background .15s; }
+.toggle input:checked ~ .toggle-thumb { transform: translateX(18px); background: #fff; border-color: #fff; }
+
+/* click type selector */
+.click-type-btns { display: flex; gap: 4px; }
+.ctype { padding: 5px 10px; border-radius: 0; border: 2px solid var(--border); background: none; color: var(--muted); font-size: 10px; font-weight: 700; cursor: pointer; font-family: 'Space Mono', monospace; text-transform: uppercase; box-shadow: 2px 2px 0 #000; transition: transform .1s, box-shadow .1s, background .1s; }
+.ctype:active { transform: translate(2px,2px); box-shadow: none; }
+.ctype.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+/* volume slider */
+.vol-slider { -webkit-appearance: none; appearance: none; width: 110px; height: 6px; border-radius: 0; background: #ddd; border: 2px solid var(--border); outline: none; cursor: pointer; }
+.vol-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 0; background: var(--accent); border: 2px solid var(--border); cursor: pointer; box-shadow: 2px 2px 0 #000; }
+.vol-slider::-moz-range-thumb { width: 16px; height: 16px; border-radius: 0; background: var(--accent); border: 2px solid var(--border); cursor: pointer; }
+.vol-val { font-size: 10px; color: var(--muted); min-width: 30px; text-align: right; font-family: 'Space Mono', monospace; font-weight: 700; }
+
+/* settings gear btn */
+.btn-settings { display: flex; align-items: center; justify-content: center; align-self: stretch; padding: 0 10px; border-radius: 0; border: 2px solid var(--border); background: var(--surface); color: var(--text); font-size: 14px; cursor: pointer; box-shadow: var(--shadow); transition: transform .1s, box-shadow .1s; }
+.btn-settings:active { transform: translate(2px,2px); box-shadow: none; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>🥁 Visual Metronome</h1>
+</div>
+
+<div class="metros" id="metros">
+  <div class="empty-state"><span>🥁</span>Tap <b>＋ New</b> to add a tempo</div>
+</div>
+
+<div class="toolbar">
+  <button class="btn-settings" onclick="openSettings()" title="Settings">⚙️</button>
+  <button class="btn-search" onclick="openSearch()">🔍 Search</button>
+  <button class="btn-add" onclick="addMetro()">＋ New</button>
+  <span class="toolbar-attr">BPM data: <a href="https://www.last.fm" target="_blank" rel="noopener">Last.fm</a></span>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="settingsModal" onclick="handleSettingsOverlayClick(event)">
+  <div class="modal settings-modal">
+    <div class="modal-header">
+      <h2>⚙️ Settings</h2>
+      <button class="modal-close" onclick="closeSettings()">✕</button>
+    </div>
+    <div class="settings-body">
+
+      <!-- Accent beat 1 -->
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">Accent Beat 1</div>
+          <div class="setting-desc">Higher pitch &amp; louder click on beat 1</div>
+        </div>
+        <div class="setting-control">
+          <label class="toggle-wrap">
+            <div class="toggle">
+              <input type="checkbox" id="set-accent" onchange="saveSetting('accentBeat1', this.checked)">
+              <div class="toggle-track"></div>
+              <div class="toggle-thumb"></div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Click type -->
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">Click Sound</div>
+          <div class="setting-desc">Tone style for the metronome click</div>
+        </div>
+        <div class="setting-control">
+          <div class="click-type-btns">
+            <button class="ctype" id="ctype-wood"   onclick="setClickType('wood')"  >Wood</button>
+            <button class="ctype" id="ctype-beep"   onclick="setClickType('beep')"  >Beep</button>
+            <button class="ctype" id="ctype-soft"   onclick="setClickType('soft')"  >Soft</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Volume -->
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">Volume</div>
+          <div class="setting-desc">Click loudness</div>
+        </div>
+        <div class="setting-control" style="display:flex;align-items:center;gap:6px;">
+          <input type="range" class="vol-slider" id="set-volume" min="0" max="100" value="70"
+            oninput="setVolume(this.value)">
+          <span class="vol-val" id="vol-display">70%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Search Modal -->
+<div class="modal-overlay" id="searchModal" onclick="handleOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>🔍 Search Song BPM</h2>
+      <button class="modal-close" onclick="closeSearch()">✕</button>
+    </div>
+    <div class="search-bar">
+      <input class="search-input" id="searchInput" type="text" placeholder="Song title or artist…"
+        onkeydown="if(event.key==='Enter') doSearch()" autocomplete="off" />
+      <button class="btn-go" id="searchBtn" onclick="doSearch()">Search</button>
+    </div>
+    <div class="search-hint" id="searchHint"></div>
+    <div class="search-results" id="searchResults">
+      <div class="search-status">Search for a song to find its BPM</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────
+// 🔑 OPTIONAL: Paste your GetSongBPM key here for live search
+//    (extends beyond the built-in database once you have it)
+//    Get one free at https://getsongbpm.com/api
+// ─────────────────────────────────────────────────────────
+const GETSONGBPM_API_KEY = 'YOUR_API_KEY_HERE'; // ← replace when ready
+
+// ── BUNDLED BPM DATABASE (~120 well-known songs) ──
+// Used as primary source; Last.fm search used to find matches by name
+const BPM_DB = [
+  // Pop / Top 40
+  {t:"Blinding Lights",a:"The Weeknd",bpm:171},
+  {t:"Shape of You",a:"Ed Sheeran",bpm:96},
+  {t:"Bad Guy",a:"Billie Eilish",bpm:135},
+  {t:"Uptown Funk",a:"Mark Ronson ft. Bruno Mars",bpm:115},
+  {t:"Happy",a:"Pharrell Williams",bpm:160},
+  {t:"Rolling in the Deep",a:"Adele",bpm:105},
+  {t:"Someone Like You",a:"Adele",bpm:68},
+  {t:"Stay With Me",a:"Sam Smith",bpm:84},
+  {t:"Shallow",a:"Lady Gaga & Bradley Cooper",bpm:96},
+  {t:"Levitating",a:"Dua Lipa",bpm:103},
+  {t:"Watermelon Sugar",a:"Harry Styles",bpm:95},
+  {t:"As It Was",a:"Harry Styles",bpm:174},
+  {t:"Flowers",a:"Miley Cyrus",bpm:117},
+  {t:"Anti-Hero",a:"Taylor Swift",bpm:97},
+  {t:"Shake It Off",a:"Taylor Swift",bpm:160},
+  {t:"Love Story",a:"Taylor Swift",bpm:119},
+  {t:"Blank Space",a:"Taylor Swift",bpm:96},
+  {t:"Cruel Summer",a:"Taylor Swift",bpm:170},
+  {t:"Teenage Dream",a:"Katy Perry",bpm:120},
+  {t:"Roar",a:"Katy Perry",bpm:90},
+  {t:"Firework",a:"Katy Perry",bpm:124},
+  {t:"Call Me Maybe",a:"Carly Rae Jepsen",bpm:120},
+  {t:"Somebody That I Used to Know",a:"Gotye ft. Kimbra",bpm:129},
+  {t:"Mirrors",a:"Justin Timberlake",bpm:120},
+  {t:"Can't Stop the Feeling",a:"Justin Timberlake",bpm:113},
+  {t:"Sorry",a:"Justin Bieber",bpm:100},
+  {t:"Love Yourself",a:"Justin Bieber",bpm:102},
+  {t:"Stay",a:"Justin Bieber & The Kid LAROI",bpm:170},
+  {t:"Peaches",a:"Justin Bieber",bpm:90},
+  {t:"Dynamite",a:"BTS",bpm:114},
+  // Rock / Alternative
+  {t:"Bohemian Rhapsody",a:"Queen",bpm:72},
+  {t:"We Will Rock You",a:"Queen",bpm:81},
+  {t:"Don't Stop Me Now",a:"Queen",bpm:156},
+  {t:"Under Pressure",a:"Queen & David Bowie",bpm:110},
+  {t:"Hotel California",a:"Eagles",bpm:75},
+  {t:"Wonderwall",a:"Oasis",bpm:87},
+  {t:"Smells Like Teen Spirit",a:"Nirvana",bpm:117},
+  {t:"Come As You Are",a:"Nirvana",bpm:120},
+  {t:"Mr. Brightside",a:"The Killers",bpm:148},
+  {t:"Somebody Told Me",a:"The Killers",bpm:140},
+  {t:"Seven Nation Army",a:"The White Stripes",bpm:124},
+  {t:"Black Dog",a:"Led Zeppelin",bpm:82},
+  {t:"Stairway to Heaven",a:"Led Zeppelin",bpm:82},
+  {t:"Back in Black",a:"AC/DC",bpm:92},
+  {t:"Highway to Hell",a:"AC/DC",bpm:116},
+  {t:"Sweet Child O' Mine",a:"Guns N' Roses",bpm:122},
+  {t:"Paradise City",a:"Guns N' Roses",bpm:100},
+  {t:"Living on a Prayer",a:"Bon Jovi",bpm:123},
+  {t:"Livin' on a Prayer",a:"Bon Jovi",bpm:123},
+  {t:"Eye of the Tiger",a:"Survivor",bpm:109},
+  {t:"Born to Run",a:"Bruce Springsteen",bpm:168},
+  {t:"Africa",a:"Toto",bpm:93},
+  {t:"Don't Stop Believin'",a:"Journey",bpm:119},
+  {t:"Creep",a:"Radiohead",bpm:93},
+  {t:"Everlong",a:"Foo Fighters",bpm:155},
+  {t:"Best of You",a:"Foo Fighters",bpm:87},
+  {t:"Learn to Fly",a:"Foo Fighters",bpm:136},
+  {t:"In Bloom",a:"Nirvana",bpm:118},
+  {t:"Yellow",a:"Coldplay",bpm:89},
+  {t:"The Scientist",a:"Coldplay",bpm:75},
+  {t:"Clocks",a:"Coldplay",bpm:131},
+  {t:"Fix You",a:"Coldplay",bpm:138},
+  {t:"Viva la Vida",a:"Coldplay",bpm:138},
+  {t:"Speed of Sound",a:"Coldplay",bpm:118},
+  {t:"Counting Stars",a:"OneRepublic",bpm:122},
+  {t:"Demons",a:"Imagine Dragons",bpm:90},
+  {t:"Radioactive",a:"Imagine Dragons",bpm:136},
+  {t:"Thunder",a:"Imagine Dragons",bpm:160},
+  {t:"Believer",a:"Imagine Dragons",bpm:125},
+  // Dance / Electronic
+  {t:"Stayin' Alive",a:"Bee Gees",bpm:104},
+  {t:"Dancing Queen",a:"ABBA",bpm:102},
+  {t:"Take On Me",a:"a-ha",bpm:169},
+  {t:"Blue (Da Ba Dee)",a:"Eiffel 65",bpm:138},
+  {t:"Around the World",a:"Daft Punk",bpm:121},
+  {t:"Get Lucky",a:"Daft Punk",bpm:116},
+  {t:"One More Time",a:"Daft Punk",bpm:123},
+  {t:"Titanium",a:"David Guetta ft. Sia",bpm:126},
+  {t:"Without Me",a:"Eminem",bpm:86},
+  {t:"Lean On",a:"Major Lazer & DJ Snake",bpm:98},
+  {t:"Cheap Thrills",a:"Sia",bpm:94},
+  {t:"Chandelier",a:"Sia",bpm:128},
+  {t:"Don't You Worry Child",a:"Swedish House Mafia",bpm:128},
+  {t:"Wake Me Up",a:"Avicii",bpm:124},
+  {t:"Levels",a:"Avicii",bpm:128},
+  {t:"Animals",a:"Martin Garrix",bpm:128},
+  // R&B / Soul / Hip-Hop
+  {t:"Superstition",a:"Stevie Wonder",bpm:100},
+  {t:"Signed Sealed Delivered",a:"Stevie Wonder",bpm:112},
+  {t:"Respect",a:"Aretha Franklin",bpm:114},
+  {t:"I Will Always Love You",a:"Whitney Houston",bpm:68},
+  {t:"I Wanna Dance with Somebody",a:"Whitney Houston",bpm:118},
+  {t:"Halo",a:"Beyoncé",bpm:84},
+  {t:"Crazy in Love",a:"Beyoncé",bpm:100},
+  {t:"Single Ladies",a:"Beyoncé",bpm:97},
+  {t:"Formation",a:"Beyoncé",bpm:94},
+  {t:"God's Plan",a:"Drake",bpm:77},
+  {t:"Hotline Bling",a:"Drake",bpm:84},
+  {t:"HUMBLE.",a:"Kendrick Lamar",bpm:75},
+  {t:"Alright",a:"Kendrick Lamar",bpm:95},
+  {t:"SICKO MODE",a:"Travis Scott",bpm:74},
+  {t:"Lose Yourself",a:"Eminem",bpm:171},
+  {t:"Stan",a:"Eminem",bpm:75},
+  {t:"In My Life",a:"The Beatles",bpm:105},
+  // Classic / Timeless
+  {t:"Let It Be",a:"The Beatles",bpm:75},
+  {t:"Hey Jude",a:"The Beatles",bpm:75},
+  {t:"Come Together",a:"The Beatles",bpm:82},
+  {t:"Yesterday",a:"The Beatles",bpm:96},
+  {t:"Billie Jean",a:"Michael Jackson",bpm:117},
+  {t:"Thriller",a:"Michael Jackson",bpm:118},
+  {t:"Beat It",a:"Michael Jackson",bpm:138},
+  {t:"Man in the Mirror",a:"Michael Jackson",bpm:100},
+  {t:"Purple Rain",a:"Prince",bpm:113},
+  {t:"Kiss",a:"Prince",bpm:111},
+  {t:"When Doves Cry",a:"Prince",bpm:112},
+  {t:"Like a Prayer",a:"Madonna",bpm:114},
+  {t:"Material Girl",a:"Madonna",bpm:112},
+  {t:"Born This Way",a:"Lady Gaga",bpm:124},
+  {t:"Poker Face",a:"Lady Gaga",bpm:120},
+  {t:"Just Dance",a:"Lady Gaga",bpm:119},
+  // Practice standards
+  {t:"Autumn Leaves",a:"Jazz Standard",bpm:120},
+  {t:"All of Me",a:"Jazz Standard",bpm:136},
+  {t:"So What",a:"Miles Davis",bpm:136},
+  {t:"Take Five",a:"Dave Brubeck",bpm:176},
+  {t:"Fly Me to the Moon",a:"Frank Sinatra",bpm:144},
+  // Kiss
+  {t:"Sure Know Something",a:"Kiss",bpm:115},
+  {t:"Rock and Roll All Nite",a:"Kiss",bpm:152},
+  {t:"Detroit Rock City",a:"Kiss",bpm:152},
+  {t:"I Was Made for Lovin' You",a:"Kiss",bpm:128},
+  {t:"Beth",a:"Kiss",bpm:74},
+  {t:"Shout It Out Loud",a:"Kiss",bpm:148},
+  {t:"Love Gun",a:"Kiss",bpm:141},
+  {t:"Calling Dr. Love",a:"Kiss",bpm:136},
+  {t:"Strutter",a:"Kiss",bpm:138},
+  {t:"Deuce",a:"Kiss",bpm:148},
+  // More classic rock
+  {t:"Whole Lotta Love",a:"Led Zeppelin",bpm:90},
+  {t:"Rock and Roll",a:"Led Zeppelin",bpm:171},
+  {t:"Kashmir",a:"Led Zeppelin",bpm:80},
+  {t:"Roxanne",a:"The Police",bpm:134},
+  {t:"Every Breath You Take",a:"The Police",bpm:116},
+  {t:"Don't Stand So Close to Me",a:"The Police",bpm:128},
+  {t:"Message in a Bottle",a:"The Police",bpm:152},
+  {t:"Welcome to the Jungle",a:"Guns N' Roses",bpm:113},
+  {t:"November Rain",a:"Guns N' Roses",bpm:74},
+  {t:"Jump",a:"Van Halen",bpm:132},
+  {t:"Panama",a:"Van Halen",bpm:152},
+  {t:"Hot for Teacher",a:"Van Halen",bpm:199},
+  {t:"Runnin' with the Devil",a:"Van Halen",bpm:131},
+  {t:"Owner of a Lonely Heart",a:"Yes",bpm:126},
+  {t:"Come Sail Away",a:"Styx",bpm:118},
+  {t:"Mr. Roboto",a:"Styx",bpm:105},
+  {t:"Come on Eileen",a:"Dexys Midnight Runners",bpm:96},
+  {t:"Our House",a:"Madness",bpm:115},
+  {t:"Should I Stay or Should I Go",a:"The Clash",bpm:113},
+  {t:"London Calling",a:"The Clash",bpm:142},
+  {t:"Dancing in the Dark",a:"Bruce Springsteen",bpm:124},
+  {t:"Thunder Road",a:"Bruce Springsteen",bpm:96},
+  {t:"Brown Eyed Girl",a:"Van Morrison",bpm:148},
+  {t:"Wild Thing",a:"The Troggs",bpm:100},
+  {t:"Jumpin' Jack Flash",a:"The Rolling Stones",bpm:126},
+  {t:"Paint It Black",a:"The Rolling Stones",bpm:162},
+  {t:"Sympathy for the Devil",a:"The Rolling Stones",bpm:124},
+  {t:"Start Me Up",a:"The Rolling Stones",bpm:128},
+  {t:"Gimme Shelter",a:"The Rolling Stones",bpm:100},
+  {t:"Satisfaction",a:"The Rolling Stones",bpm:136},
+  {t:"Brown Sugar",a:"The Rolling Stones",bpm:152},
+  {t:"Layla",a:"Derek and the Dominos",bpm:116},
+  {t:"Cocaine",a:"Eric Clapton",bpm:102},
+  {t:"Sultans of Swing",a:"Dire Straits",bpm:148},
+  {t:"Money for Nothing",a:"Dire Straits",bpm:134},
+  {t:"Roxanne",a:"The Police",bpm:134},
+  {t:"Superstition",a:"Stevie Wonder",bpm:100},
+  {t:"Higher Ground",a:"Stevie Wonder",bpm:138},
+  // More metal
+  {t:"Enter Sandman",a:"Metallica",bpm:123},
+  {t:"Master of Puppets",a:"Metallica",bpm:212},
+  {t:"Nothing Else Matters",a:"Metallica",bpm:69},
+  {t:"One",a:"Metallica",bpm:144},
+  {t:"Paranoid",a:"Black Sabbath",bpm:164},
+  {t:"Iron Man",a:"Black Sabbath",bpm:170},
+  {t:"War Pigs",a:"Black Sabbath",bpm:80},
+  {t:"Crazy Train",a:"Ozzy Osbourne",bpm:138},
+  {t:"Mr. Crowley",a:"Ozzy Osbourne",bpm:80},
+  {t:"Holy Diver",a:"Dio",bpm:142},
+  {t:"Breaking the Law",a:"Judas Priest",bpm:140},
+  {t:"You've Got Another Thing Coming",a:"Judas Priest",bpm:148},
+  {t:"Run to the Hills",a:"Iron Maiden",bpm:184},
+  {t:"The Trooper",a:"Iron Maiden",bpm:188},
+  {t:"Ace of Spades",a:"Motorhead",bpm:236},
+  // Recent hits (2018-2024)
+  {t:"Unholy",a:"Sam Smith & Kim Petras",bpm:130},
+  {t:"As It Was",a:"Harry Styles",bpm:174},
+  {t:"Heat Waves",a:"Glass Animals",bpm:80},
+  {t:"Glimpse of Us",a:"Joji",bpm:70},
+  {t:"About Damn Time",a:"Lizzo",bpm:108},
+  {t:"Break My Soul",a:"Beyoncé",bpm:125},
+  {t:"CUFF IT",a:"Beyoncé",bpm:107},
+  {t:"I Ain't Worried",a:"OneRepublic",bpm:108},
+  {t:"Shivers",a:"Ed Sheeran",bpm:141},
+  {t:"Bad Habits",a:"Ed Sheeran",bpm:126},
+  {t:"Overpass Graffiti",a:"Ed Sheeran",bpm:116},
+  {t:"Peaches",a:"Justin Bieber",bpm:90},
+  {t:"Ghost",a:"Justin Bieber",bpm:130},
+  {t:"good 4 u",a:"Olivia Rodrigo",bpm:166},
+  {t:"drivers license",a:"Olivia Rodrigo",bpm:72},
+  {t:"brutal",a:"Olivia Rodrigo",bpm:168},
+  {t:"vampire",a:"Olivia Rodrigo",bpm:138},
+  {t:"Montero (Call Me By Your Name)",a:"Lil Nas X",bpm:178},
+  {t:"Industry Baby",a:"Lil Nas X",bpm:149},
+  {t:"Butter",a:"BTS",bpm:110},
+  {t:"Permission to Dance",a:"BTS",bpm:136},
+  {t:"Save Your Tears",a:"The Weeknd",bpm:118},
+  {t:"Starboy",a:"The Weeknd",bpm:186},
+  {t:"Die For You",a:"The Weeknd",bpm:95},
+  {t:"Lose Control",a:"Teddy Swims",bpm:63},
+  {t:"Espresso",a:"Sabrina Carpenter",bpm:104},
+  {t:"Please Please Please",a:"Sabrina Carpenter",bpm:129},
+  {t:"Feather",a:"Sabrina Carpenter",bpm:123},
+  {t:"Paint The Town Red",a:"Doja Cat",bpm:96},
+  {t:"Say So",a:"Doja Cat",bpm:112},
+  {t:"Streets",a:"Doja Cat",bpm:116},
+  {t:"Woman",a:"Doja Cat",bpm:104},
+  {t:"Calm Down",a:"Rema & Selena Gomez",bpm:106},
+  {t:"Cruel Summer",a:"Taylor Swift",bpm:170},
+  {t:"Love Story (Taylor's Version)",a:"Taylor Swift",bpm:119},
+  {t:"All Too Well (10 Minute Version)",a:"Taylor Swift",bpm:82},
+  {t:"Midnight Rain",a:"Taylor Swift",bpm:90},
+  {t:"Lavender Haze",a:"Taylor Swift",bpm:97},
+  {t:"Karma",a:"Taylor Swift",bpm:95},
+  {t:"Anti-Hero",a:"Taylor Swift",bpm:97},
+  {t:"Flowers",a:"Miley Cyrus",bpm:117},
+  {t:"Midnight Sky",a:"Miley Cyrus",bpm:115},
+  {t:"Wrecking Ball",a:"Miley Cyrus",bpm:73},
+  {t:"golden hour",a:"JVKE",bpm:96},
+  {t:"Dandelions",a:"Ruth B.",bpm:72},
+  {t:"Enemy",a:"Imagine Dragons & JID",bpm:138},
+  {t:"Natural",a:"Imagine Dragons",bpm:148},
+  {t:"Enemy",a:"Imagine Dragons",bpm:138},
+  {t:"Blinding Lights",a:"The Weeknd",bpm:171},
+  {t:"In The Stars",a:"Benson Boone",bpm:130},
+  {t:"Beautiful Things",a:"Benson Boone",bpm:130},
+  {t:"Houdini",a:"Eminem",bpm:170},
+  {t:"Texas Hold 'Em",a:"Beyoncé",bpm:96},
+  {t:"A Bar Song",a:"Shaboozey",bpm:100},
+  {t:"Not Like Us",a:"Kendrick Lamar",bpm:101},
+  {t:"Die With a Smile",a:"Lady Gaga & Bruno Mars",bpm:86},
+  {t:"APT.",a:"Rose & Bruno Mars",bpm:140},
+  {t:"Luther",a:"Kendrick Lamar & SZA",bpm:88},
+  {t:"Birds of a Feather",a:"Billie Eilish",bpm:111},
+  {t:"LUNCH",a:"Billie Eilish",bpm:122},
+  {t:"Too Sweet",a:"Hozier",bpm:96},
+  {t:"Take Me to Church",a:"Hozier",bpm:130},
+  {t:"Vampire",a:"Olivia Rodrigo",bpm:138},
+  // Taylor Swift — The Tortured Poets Department (2024-2025)
+  {t:"The Fate of Ophelia",a:"Taylor Swift",bpm:124},
+  {t:"Fortnight",a:"Taylor Swift ft. Post Malone",bpm:107},
+  {t:"The Tortured Poets Department",a:"Taylor Swift",bpm:105},
+  {t:"But Daddy I Love Him",a:"Taylor Swift",bpm:160},
+  {t:"So Long London",a:"Taylor Swift",bpm:92},
+  {t:"Down Bad",a:"Taylor Swift",bpm:122},
+  {t:"Who's Afraid of Little Old Me?",a:"Taylor Swift",bpm:118},
+  {t:"The Smallest Man Who Ever Lived",a:"Taylor Swift",bpm:86},
+  {t:"The Manuscript",a:"Taylor Swift",bpm:76},
+  // Chappell Roan
+  {t:"Good Luck Babe",a:"Chappell Roan",bpm:117},
+  {t:"Good Luck, Babe!",a:"Chappell Roan",bpm:117},
+  {t:"Pink Pony Club",a:"Chappell Roan",bpm:130},
+  {t:"HOT TO GO!",a:"Chappell Roan",bpm:115},
+  {t:"Red Wine Supernova",a:"Chappell Roan",bpm:122},
+  {t:"Femininomenon",a:"Chappell Roan",bpm:116},
+  {t:"Super Graphic Ultra Modern Girl",a:"Chappell Roan",bpm:102},
+  {t:"After Midnight",a:"Chappell Roan",bpm:116},
+  // Sabrina Carpenter — Short n' Sweet (2024)
+  {t:"Taste",a:"Sabrina Carpenter",bpm:105},
+  {t:"Slim Pickins",a:"Sabrina Carpenter",bpm:108},
+  {t:"Coincidence",a:"Sabrina Carpenter",bpm:127},
+  {t:"Bed Chem",a:"Sabrina Carpenter",bpm:100},
+  {t:"Manchild",a:"Sabrina Carpenter",bpm:104},
+  // Other 2024-2025 hits
+  {t:"Lunch",a:"Billie Eilish",bpm:122},
+  {t:"The Greatest",a:"Billie Eilish",bpm:140},
+  {t:"Blue",a:"Billie Eilish",bpm:90},
+  {t:"wildflower",a:"Billie Eilish",bpm:118},
+  {t:"obsessed",a:"Olivia Rodrigo",bpm:116},
+  {t:"scared of my guitar",a:"Olivia Rodrigo",bpm:80},
+  {t:"I Had Some Help",a:"Post Malone ft. Morgan Wallen",bpm:104},
+  {t:"Levii's Jeans",a:"Beyoncé ft. Post Malone",bpm:115},
+  {t:"16 Carriages",a:"Beyoncé",bpm:118},
+  {t:"Jolene",a:"Beyoncé",bpm:126},
+  {t:"Bodyguard",a:"Beyoncé",bpm:120},
+  {t:"BIRDS OF A FEATHER",a:"Billie Eilish",bpm:111},
+  {t:"Guess",a:"Charli XCX ft. Billie Eilish",bpm:127},
+  {t:"360",a:"Charli XCX",bpm:125},
+  {t:"Sympathy is a Knife",a:"Charli XCX",bpm:130},
+  {t:"Von dutch",a:"Charli XCX",bpm:145},
+  {t:"Apple",a:"Charli XCX",bpm:130},
+  {t:"Rewind",a:"Charli XCX",bpm:120},
+  {t:"Talk talk",a:"Charli XCX ft. troye sivan",bpm:128},
+  {t:"Femme fatale",a:"Charli XCX",bpm:110},
+  {t:"Stick Season",a:"Noah Kahan",bpm:146},
+  {t:"Dial Drunk",a:"Noah Kahan",bpm:104},
+  {t:"Northern Attitude",a:"Noah Kahan",bpm:112},
+  {t:"Homesick",a:"Noah Kahan",bpm:148},
+  {t:"She Calls Me Back",a:"Noah Kahan",bpm:126},
+  {t:"You're Gonna Go Far",a:"Noah Kahan",bpm:120},
+  {t:"Suitcase",a:"Noah Kahan",bpm:148},
+  {t:"Growing Sideways",a:"Noah Kahan",bpm:96},
+  {t:"Call Your Mom",a:"Noah Kahan",bpm:88},
+  {t:"Forever",a:"Noah Kahan",bpm:94},
+  {t:"Somewhere",a:"Noah Kahan",bpm:78},
+  {t:"Tulum 1994",a:"Noah Kahan",bpm:82},
+  {t:"Mess",a:"Noah Kahan",bpm:86},
+  {t:"Alligator Sky",a:"Noah Kahan",bpm:112},
+  {t:"False Confidence",a:"Noah Kahan",bpm:166},
+  {t:"Hurt Somebody",a:"Noah Kahan",bpm:120},
+  // More 2023-2024
+  {t:"Cruel World",a:"Sabrina Carpenter",bpm:158},
+  {t:"white horse",a:"Chris Stapleton",bpm:80},
+  {t:"Fast Car",a:"Luke Combs",bpm:104},
+  {t:"Sunrise",a:"Hozier",bpm:86},
+  {t:"De Selby (Part 1)",a:"Hozier",bpm:112},
+  {t:"Damage Gets Done",a:"Hozier ft. Brandi Carlile",bpm:84},
+  {t:"First Time",a:"Hozier",bpm:128},
+  {t:"Abstract (Psychopomp)",a:"Hozier",bpm:130},
+  {t:"Wildfire",a:"Hozier",bpm:134},
+  {t:"Son of Nyx",a:"Hozier",bpm:108},
+  {t:"Empire of the Sun",a:"Hozier",bpm:116},
+];
+
+// Normalize string for fuzzy matching
+function normalize(s) {
+  return s.toLowerCase().replace(/[^a-z0-9 ]/g,'').replace(/\s+/g,' ').trim();
+}
+
+// Search BPM_DB by title and/or artist
+function searchLocal(query) {
+  const q = normalize(query);
+  const words = q.split(' ');
+  return BPM_DB.map(song => {
+    const titleN = normalize(song.t);
+    const artistN = normalize(song.a);
+    const combined = titleN + ' ' + artistN;
+    let score = 0;
+    if (titleN === q || combined === q) score = 100;
+    else if (titleN.startsWith(q) || combined.startsWith(q)) score = 80;
+    else if (titleN.includes(q)) score = 70;
+    else if (combined.includes(q)) score = 60;
+    else {
+      // word match
+      const matched = words.filter(w => w.length > 1 && combined.includes(w));
+      score = (matched.length / words.length) * 50;
+    }
+    return { ...song, score };
+  })
+  .filter(s => s.score > 10)
+  .sort((a, b) => b.score - a.score)
+  .slice(0, 10);
+}
+
+// ── CORE DATA ──
+let metros = JSON.parse(localStorage.getItem('vmet2') || 'null') || [
+  { id: 1, name: 'Intro',  bpm: 80,  ts: 4, subdiv: 2, sound: false },
+  { id: 2, name: 'Verse',  bpm: 120, ts: 4, subdiv: 2, sound: false },
+  { id: 3, name: 'Chorus', bpm: 128, ts: 4, subdiv: 2, sound: false },
+];
+let nid = Math.max(0, ...metros.map(m => m.id)) + 1;
+const rt = {};
+function rtOf(id) {
+  if (!rt[id]) rt[id] = { playing: false, pipIdx: -1, timerId: null, lastTaps: [] };
+  return rt[id];
+}
+function save() { localStorage.setItem('vmet2', JSON.stringify(metros)); }
+
+function render() {
+  const el = document.getElementById('metros');
+  if (!metros.length) {
+    el.innerHTML = '<div class="empty-state"><span>🥁</span>Tap <b>＋ New</b> to add a tempo</div>';
+    return;
+  }
+  el.innerHTML = metros.map(buildCard).join('');
+}
+
+function buildCard(m) {
+  const r = rtOf(m.id);
+  const pipsPerBeat = m.subdiv;
+  const totalPips = m.ts * pipsPerBeat;
+  let pipsHTML = '';
+  // Flat pip list — CSS grid distributes them evenly across total columns
+  for (let b = 0; b < m.ts; b++) {
+    for (let s = 0; s < pipsPerBeat; s++) {
+      const idx = b * pipsPerBeat + s;
+      const isQ = s === 0, isB1 = idx === 0, isLit = idx === r.pipIdx;
+      let cls = isQ ? 'bl-pip q' : 'bl-pip';
+      if (isLit) cls += isQ ? (isB1 ? ' lit-q b1' : ' lit-q') : (pipsPerBeat === 4 ? ' lit-s' : ' lit-t');
+      pipsHTML += `<div class="${cls}" id="pip-${m.id}-${idx}"></div>`;
+    }
+  }
+  const safeName = m.name.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  return `<div class="metro-card ${r.playing?'playing':''}" id="card-${m.id}">
+    <div class="mc-body">
+      <div class="mc-left">
+        <div class="mc-inner">
+          <div class="mc-top">
+            <div class="dot-area" onclick="tap(${m.id})" title="Tap tempo"><div class="dot-ring"></div><div class="dot" id="dot-${m.id}"></div></div>
+            <div class="bpm-group">
+              <div class="bpm-val" id="bpmval-${m.id}" contenteditable="true"
+                onblur="bpmEdit(${m.id},this.textContent)"
+                onkeydown="if(event.key==='Enter'){this.blur();return false}"
+              >${m.bpm}</div>
+              <div class="bpm-unit">bpm</div>
+            </div>
+            <div class="bpm-btns">
+              <button class="bpm-btn" onclick="adjBPM(${m.id},1)">+</button>
+              <button class="bpm-btn" onclick="adjBPM(${m.id},-1)">−</button>
+            </div>
+          </div>
+          <div class="beat-line" id="bl-${m.id}" style="grid-template-columns:repeat(${totalPips},1fr)">${pipsHTML}</div>
+        </div>
+      </div>
+      <div class="mc-right">
+        <div class="mc-header">
+          <input class="mc-name" value="${safeName}" placeholder="Name…" onchange="updateProp(${m.id},'name',this.value)" />
+          <button class="btn-sound ${m.sound?'on':''}" id="sndbtn-${m.id}" onclick="toggleSound(${m.id})" title="${m.sound?'Sound on':'Sound off'}">${m.sound?'🔊':'🔇'}</button>
+          <button class="mc-del" onclick="deleteMetro(${m.id})">✕</button>
+        </div>
+        <div class="mc-opts">
+          <div class="subdiv-btns">
+            ${[1,2,3,4].map(s=>`<button class="sdv ${m.subdiv===s?'on':''}" onclick="updateProp(${m.id},'subdiv',${s})">${s===1?'♩':s===2?'♪':s===3?'³':'♬'}</button>`).join('')}
+          </div>
+        </div>
+        <div class="mc-footer">
+          <select class="mc-sel" onchange="updateProp(${m.id},'ts',+this.value)">
+            ${[2,3,4,5,6].map(n=>`<option value="${n}" ${m.ts===n?'selected':''}>${n}/4</option>`).join('')}
+          </select>
+          <button class="btn-play" onclick="togglePlay(${m.id})">${r.playing?'■':' ▶'} <span class="play-label">${r.playing?'Stop':'Start'}</span></button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── METRONOME ──
+function togglePlay(id) { rtOf(id).playing ? stopMetro(id) : startMetro(id); }
+function startMetro(id) {
+  const r = rtOf(id); r.playing = true; r.pipIdx = -1;
+  refreshCard(id); tick(id);
+}
+function stopMetro(id) {
+  const r = rtOf(id); r.playing = false; clearTimeout(r.timerId); r.pipIdx = -1;
+  refreshCard(id);
+}
+function tick(id) {
+  const r = rtOf(id); if (!r.playing) return;
+  const m = metros.find(x => x.id === id); if (!m) return;
+  fireBeat(id, m);
+  r.timerId = setTimeout(() => tick(id), 60000 / m.bpm / m.subdiv);
+}
+function fireBeat(id, m) {
+  const r = rtOf(id);
+  const total = m.subdiv * m.ts;
+  r.pipIdx = (r.pipIdx + 1) % total;
+  const isQ = r.pipIdx % m.subdiv === 0, isB1 = r.pipIdx === 0;
+  if (m.sound) playClick(isB1, isQ);
+  if (isQ) {
+    const dot = document.getElementById('dot-' + id);
+    if (dot) { dot.classList.remove('pulse','b1'); void dot.offsetWidth; dot.classList.add('pulse'); if (isB1) dot.classList.add('b1'); }
+  }
+  const bl = document.getElementById('bl-' + id);
+  if (bl) {
+    const prev = bl.querySelector('.lit-q,.lit-e,.lit-s');
+    if (prev) prev.classList.remove('lit-q','lit-e','lit-s','b1');
+    const pip = document.getElementById(`pip-${id}-${r.pipIdx}`);
+    if (pip) { pip.classList.add(isQ ? 'lit-q' : m.subdiv===4 ? 'lit-s' : 'lit-e'); if (isB1) pip.classList.add('b1'); }
+  }
+}
+function refreshCard(id) {
+  const card = document.getElementById('card-' + id); if (!card) return;
+  const r = rtOf(id);
+  card.classList.toggle('playing', r.playing);
+  const btn = card.querySelector('.btn-play');
+  if (btn) btn.innerHTML = r.playing ? '■ <span class="play-label">Stop</span>' : '▶ <span class="play-label">Start</span>';
+}
+
+// ── PROPS ──
+function updateProp(id, key, val) {
+  const m = metros.find(x => x.id === id); if (!m) return;
+  m[key] = val; save();
+  const was = rtOf(id).playing;
+  if (was) stopMetro(id);
+  const card = document.getElementById('card-' + id);
+  if (card) card.outerHTML = buildCard(m);
+  if (was) startMetro(id);
+}
+function adjBPM(id, d) {
+  const m = metros.find(x => x.id === id); if (!m) return;
+  m.bpm = Math.max(20, Math.min(300, m.bpm + d)); save();
+  const el = document.getElementById('bpmval-' + id); if (el) el.textContent = m.bpm;
+  const r = rtOf(id); if (r.playing) { clearTimeout(r.timerId); tick(id); }
+}
+function bpmEdit(id, raw) {
+  const v = parseInt(raw), m = metros.find(x => x.id === id); if (!m) return;
+  if (isNaN(v)) { document.getElementById('bpmval-'+id).textContent = m.bpm; return; }
+  m.bpm = Math.max(20, Math.min(300, v)); save();
+  document.getElementById('bpmval-'+id).textContent = m.bpm;
+  const r = rtOf(id); if (r.playing) { clearTimeout(r.timerId); tick(id); }
+}
+function tap(id) {
+  const r = rtOf(id), now = Date.now();
+  // Visual tap ring feedback on the dot
+  const dotEl = document.getElementById('dot-' + id);
+  if (dotEl) { dotEl.classList.remove('tapped'); void dotEl.offsetWidth; dotEl.classList.add('tapped'); }
+  r.lastTaps.push(now); if (r.lastTaps.length > 6) r.lastTaps.shift();
+  if (r.lastTaps.length < 2) return;
+  const avg = r.lastTaps.slice(1).reduce((a,t,i)=>a+(t-r.lastTaps[i]),0)/(r.lastTaps.length-1);
+  const m = metros.find(x => x.id === id); if (!m) return;
+  m.bpm = Math.max(20, Math.min(300, Math.round(60000/avg))); save();
+  document.getElementById('bpmval-'+id).textContent = m.bpm;
+  if (r.playing) { clearTimeout(r.timerId); r.pipIdx = -1; tick(id); }
+}
+function addMetro(name = '', bpm = 120) {
+  const m = { id: nid++, name, bpm, ts: 4, subdiv: 2, sound: false };
+  metros.push(m); save(); render();
+  setTimeout(() => {
+    const card = document.getElementById('card-' + m.id);
+    if (card) { card.scrollIntoView({ behavior: 'smooth' }); if (!name) card.querySelector('.mc-name').focus(); }
+  }, 50);
+  return m.id;
+}
+function deleteMetro(id) {
+  stopMetro(id); metros = metros.filter(m => m.id !== id); save(); render();
+}
+
+// ── SONG SEARCH ──
+let addedIds = new Set();
+
+function openSearch() {
+  document.getElementById('searchModal').classList.add('open');
+  setTimeout(() => document.getElementById('searchInput').focus(), 100);
+}
+function closeSearch() {
+  document.getElementById('searchModal').classList.remove('open');
+  addedIds.clear();
+}
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('searchModal')) closeSearch();
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSearch(); });
+
+async function doSearch() {
+  const query = document.getElementById('searchInput').value.trim();
+  if (!query) return;
+
+  const btn = document.getElementById('searchBtn');
+  const resultsEl = document.getElementById('searchResults');
+  const hintEl = document.getElementById('searchHint');
+  btn.disabled = true; btn.textContent = '…';
+  resultsEl.innerHTML = '<div class="search-status">Searching…</div>';
+  hintEl.textContent = '';
+
+  // 1. Search local BPM database first (instant)
+  const localResults = searchLocal(query);
+
+  // 2. Try GetSongBPM if API key is set (live results beyond the built-in DB)
+  let liveResults = [];
+  if (GETSONGBPM_API_KEY !== 'YOUR_API_KEY_HERE') {
+    try {
+      const url = `https://api.getsongbpm.com/search/?api_key=${GETSONGBPM_API_KEY}&type=both&lookup=${encodeURIComponent(query)}`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        const songs = data.search || [];
+        for (const song of songs) {
+          const bpm = Math.round(parseFloat(song.tempo));
+          const title = song.song_title || song.title || '';
+          const artist = song.artist?.name || song.artist_name || '';
+          if (!bpm || !title) continue;
+          if (!localResults.find(r => normalize(r.t) === normalize(title))) {
+            liveResults.push({ t: title, a: artist, bpm });
+          }
+        }
+      }
+    } catch (e) { /* fail silently */ }
+  }
+
+  // 3. Last.fm cross-reference (no key needed) for additional DB matches
+  try {
+    const lfmUrl = `https://ws.audioscrobbler.com/2.0/?method=track.search&track=${encodeURIComponent(query)}&api_key=7d07b45e78bbdec80a80d606e94e1cd1&format=json&limit=15`;
+    const res = await fetch(lfmUrl);
+    if (res.ok) {
+      const data = await res.json();
+      const tracks = data?.results?.trackmatches?.track || [];
+      for (const track of tracks) {
+        const titleN = normalize(track.name);
+        const artistN = normalize(track.artist);
+        const match = BPM_DB.find(s =>
+          normalize(s.t) === titleN ||
+          (normalize(s.t).includes(titleN) && normalize(s.a).includes(artistN)) ||
+          (titleN.includes(normalize(s.t)) && artistN.includes(normalize(s.a)))
+        );
+        if (match && !localResults.find(r => normalize(r.t) === normalize(match.t))) {
+          liveResults.push(match);
+        }
+      }
+    }
+  } catch (e) { /* fail silently */ }
+
+  // Merge and dedupe
+  const allResults = [...localResults];
+  for (const r of liveResults) {
+    if (!allResults.find(x => normalize(x.t) === normalize(r.t))) allResults.push(r);
+  }
+
+  if (!allResults.length) {
+    resultsEl.innerHTML = `<div class="search-status">
+      No results found for "<strong>${escapeHTML(query)}</strong>".<br>
+      Try searching by song title or artist name.
+    </div>`;
+  } else {
+    resultsEl.innerHTML = allResults.map((song, i) => buildResultItem(song, i)).join('');
+    if (allResults.length > 0) {
+      hintEl.textContent = `${allResults.length} result${allResults.length > 1 ? 's' : ''} found`;
+    }
+  }
+
+  btn.disabled = false; btn.textContent = 'Search';
+}
+
+function buildResultItem(song, i) {
+  const key = normalize(song.t) + '_' + normalize(song.a);
+  const isAdded = addedIds.has(key);
+  return `<div class="result-item">
+    <div class="result-info">
+      <div class="result-title">${escapeHTML(song.t)}</div>
+      <div class="result-artist">${escapeHTML(song.a)}</div>
+    </div>
+    <div class="result-bpm">
+      <div class="result-bpm-val">${song.bpm}</div>
+      <div class="result-bpm-label">BPM</div>
+    </div>
+    <button class="result-add ${isAdded?'added':''}" id="addbtn-${i}"
+      onclick="addSongFromSearch(${i},'${escapeAttr(song.t)}','${escapeAttr(song.a)}',${song.bpm})">
+      ${isAdded ? '✓' : '+ Add'}
+    </button>
+  </div>`;
+}
+
+function addSongFromSearch(i, title, artist, bpm) {
+  const label = `${title} — ${artist}`;
+  addMetro(label, bpm);
+  const key = normalize(title) + '_' + normalize(artist);
+  addedIds.add(key);
+  const btn = document.getElementById('addbtn-' + i);
+  if (btn) { btn.textContent = '✓'; btn.classList.add('added'); }
+}
+
+function escapeHTML(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function escapeAttr(str) {
+  return String(str).replace(/'/g,"\\'").replace(/"/g,'\\"');
+}
+
+// ── SETTINGS ──
+const DEFAULT_SETTINGS = { accentBeat1: true, clickType: 'wood', volume: 70 };
+let settings = { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem('vmet-settings') || '{}') };
+
+function saveSetting(key, val) {
+  settings[key] = val;
+  localStorage.setItem('vmet-settings', JSON.stringify(settings));
+}
+function setClickType(type) {
+  saveSetting('clickType', type);
+  document.querySelectorAll('.ctype').forEach(b => b.classList.remove('on'));
+  const btn = document.getElementById('ctype-' + type);
+  if (btn) btn.classList.add('on');
+}
+function setVolume(val) {
+  saveSetting('volume', +val);
+  const disp = document.getElementById('vol-display');
+  if (disp) disp.textContent = val + '%';
+}
+function openSettings() {
+  // Sync UI to current settings
+  document.getElementById('set-accent').checked = settings.accentBeat1 !== false;
+  document.getElementById('set-volume').value = settings.volume ?? 70;
+  document.getElementById('vol-display').textContent = (settings.volume ?? 70) + '%';
+  document.querySelectorAll('.ctype').forEach(b => b.classList.remove('on'));
+  const ct = document.getElementById('ctype-' + (settings.clickType || 'wood'));
+  if (ct) ct.classList.add('on');
+  document.getElementById('settingsModal').classList.add('open');
+}
+function closeSettings() {
+  document.getElementById('settingsModal').classList.remove('open');
+}
+function handleSettingsOverlayClick(e) {
+  if (e.target === document.getElementById('settingsModal')) closeSettings();
+}
+
+// ── AUDIO ──
+let audioCtx = null;
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function playClick(isB1, isQ) {
+  try {
+    const ctx = getAudioCtx();
+    if (ctx.state === 'suspended') ctx.resume();
+
+    const vol = (settings.volume ?? 70) / 100;
+    const accent = settings.accentBeat1 !== false;
+    const type = settings.clickType || 'wood';
+    const now = ctx.currentTime;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    // Determine role: accented beat1, normal beat, or subdivision
+    const role = (accent && isB1) ? 'b1' : isQ ? 'beat' : 'sub';
+
+    if (type === 'wood') {
+      const freqs =  { b1: [1200, 600], beat: [900, 450], sub: [1400, 900] };
+      const durs =   { b1: 0.08,        beat: 0.065,      sub: 0.03 };
+      const vols =   { b1: 0.55,        beat: 0.35,       sub: 0.12 };
+      const [f1, f2] = freqs[role];
+      const dur = durs[role], v = vols[role] * vol;
+      osc.frequency.setValueAtTime(f1, now);
+      osc.frequency.exponentialRampToValueAtTime(f2, now + dur * 0.5);
+      gain.gain.setValueAtTime(v, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+      osc.start(now); osc.stop(now + dur);
+
+    } else if (type === 'beep') {
+      const freqs = { b1: 1000, beat: 700, sub: 500 };
+      const durs =  { b1: 0.07, beat: 0.06, sub: 0.04 };
+      const vols =  { b1: 0.5,  beat: 0.3,  sub: 0.1 };
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freqs[role], now);
+      const dur = durs[role], v = vols[role] * vol;
+      gain.gain.setValueAtTime(v, now);
+      gain.gain.setValueAtTime(v, now + dur * 0.6);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+      osc.start(now); osc.stop(now + dur);
+
+    } else { // soft
+      const freqs = { b1: [600, 300], beat: [450, 250], sub: [700, 500] };
+      const durs =  { b1: 0.12,       beat: 0.09,       sub: 0.05 };
+      const vols =  { b1: 0.3,        beat: 0.18,       sub: 0.07 };
+      const [f1, f2] = freqs[role];
+      const dur = durs[role], v = vols[role] * vol;
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f1, now);
+      osc.frequency.exponentialRampToValueAtTime(f2, now + dur);
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.linearRampToValueAtTime(v, now + 0.005);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+      osc.start(now); osc.stop(now + dur);
+    }
+  } catch(e) { /* audio not available */ }
+}
+
+function toggleSound(id) {
+  const m = metros.find(x => x.id === id);
+  if (!m) return;
+  m.sound = !m.sound;
+  save();
+  if (m.sound) getAudioCtx();
+  const btn = document.getElementById('sndbtn-' + id);
+  if (btn) {
+    btn.textContent = m.sound ? '🔊' : '🔇';
+    btn.classList.toggle('on', m.sound);
+    btn.title = m.sound ? 'Sound on' : 'Sound off';
+  }
+}
+
+render();
+</script>
+</body>
+</html>
