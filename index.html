@@ -20,12 +20,12 @@
   --shadow: 2px 2px 0px rgba(0,0,0,0.5);
   --shadow-lg: 3px 3px 0px rgba(0,0,0,0.4);
   --surface-playing: #fff8f9;
-  --pip-off: #ccc;
-  --pip-off-q: #999;
-  --pip-lit: #333;
-  --pip-lit-e: #555;
-  --pip-lit-s: #777;
-  --pip-lit-t: #666;
+  --pip-off: #e8e2d8;
+  --pip-off-q: #d4cdc0;
+  --pip-lit: #ff3c5f;
+  --pip-lit-e: rgba(255,60,95,0.45);
+  --pip-lit-s: rgba(255,60,95,0.6);
+  --pip-lit-t: rgba(255,60,95,0.5);
 }
 [data-theme="dark"] {
   --bg: #0d0d0d;
@@ -40,12 +40,12 @@
   --shadow: 2px 2px 0px rgba(255,255,255,0.4);
   --shadow-lg: 3px 3px 0px rgba(255,255,255,0.3);
   --surface-playing: #1f0a0d;
-  --pip-off: #333;
-  --pip-off-q: #444;
-  --pip-lit: #ddd;
-  --pip-lit-e: rgba(255,60,95,.5);
-  --pip-lit-s: rgba(255,60,95,.65);
-  --pip-lit-t: rgba(255,60,95,.55);
+  --pip-off: #1e1e1e;
+  --pip-off-q: #282828;
+  --pip-lit: #ff3c5f;
+  --pip-lit-e: rgba(255,60,95,0.4);
+  --pip-lit-s: rgba(255,60,95,0.6);
+  --pip-lit-t: rgba(255,60,95,0.5);
 }
 html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Space Mono', monospace; }
 body { display: flex; flex-direction: column; overflow: hidden; }
@@ -71,53 +71,59 @@ body.modal-open { position: fixed; width: 100%; overflow: hidden; }
 .mc-body { display: flex; align-items: stretch; }
 
 /* ── LEFT COLUMN ── */
-.mc-left { width: 58%; flex-shrink: 0; border-right: 2px solid var(--border); padding: 0 12px; display: flex; align-items: center; justify-content: center; background: var(--surface2); }
+.mc-left { width: 58%; flex-shrink: 0; border-right: 2px solid var(--border); display: flex; flex-direction: column; justify-content: space-between; background: var(--surface2); }
 .mc-top { display: flex; align-items: center; gap: 8px; }
-.dot-area { position: relative; width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-.dot-ring { position: absolute; inset: 0; border-radius: 50%; border: 2px solid var(--border); }
-.dot { width: 28px; height: 28px; border-radius: 50%; background: var(--text); border: 2px solid var(--border); }
-.dot.pulse   { animation: dp  .13s ease-out forwards; }
-.dot.pulse.b1{ animation: dp1 .13s ease-out forwards; }
-@keyframes dp  { 0%{transform:scale(1.7);box-shadow:0 0 0 4px rgba(255,60,95,.35)} 100%{transform:scale(1);box-shadow:none} }
-@keyframes dp1 { 0%{transform:scale(2); background: var(--accent); box-shadow:0 0 0 6px rgba(255,60,95,.4)} 100%{transform:scale(1);background:var(--text);box-shadow:none} }
-@keyframes tap-ring { 0%{box-shadow:0 0 0 0 rgba(255,60,95,.6)} 100%{box-shadow:0 0 0 10px rgba(255,60,95,0)} }
-.dot.tapped { animation: tap-ring .35s ease-out forwards; }
-.dot-area:active .dot { transform: scale(0.85); }
+.bpm-val.pulse   { animation: bpm-pulse   .12s ease-out forwards; }
+.bpm-val.pulse.b1{ animation: bpm-pulse-b1 .12s ease-out forwards; }
+.bpm-val.tapped  { animation: bpm-tapped   .25s ease-out forwards; }
+@keyframes bpm-pulse   { 0%{ color: var(--accent); transform: scale(1.12); } 100%{ color: var(--text); transform: scale(1); } }
+@keyframes bpm-pulse-b1{ 0%{ color: var(--accent); transform: scale(1.18); } 100%{ color: var(--text); transform: scale(1); } }
+@keyframes bpm-tapped  { 0%{ color: var(--accent); } 100%{ color: var(--text); } }
 
-.mc-inner { display: flex; flex-direction: column; gap: 8px; padding: 9px 0; width: 100%; }
+.mc-inner { display: flex; flex-direction: column; gap: 8px; padding: 9px 12px; width: 100%; flex: 1; }
 .bpm-group { flex: 1; display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; }
 .bpm-val { font-size: clamp(26px, 8vw, 40px); font-weight: 700; line-height: 1; cursor: text; font-family: 'Archivo Black', sans-serif; white-space: nowrap; min-width: 0; flex-shrink: 1; }
 .bpm-val[contenteditable]:focus { outline: none; color: var(--accent); }
 .bpm-unit { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; align-self: flex-end; margin-bottom: 4px; font-family: 'Space Mono', monospace; flex-shrink: 0; }
-.bpm-btns { display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; }
+.bpm-btns { display: flex; flex-direction: row; gap: 3px; flex-shrink: 0; align-items: stretch; }
+.bpm-adj { display: flex; flex-direction: column; gap: 3px; }
 .bpm-btn { width: 26px; height: 20px; border-radius: 0; border: 2px solid var(--border); background: var(--surface); color: var(--text); font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 2px 2px 0 #000; transition: transform .1s, box-shadow .1s; }
 .bpm-btn:active { transform: translate(2px,2px); box-shadow: none; }
+.bpm-tap { font-size: 10px; letter-spacing: 0.5px; color: var(--muted); width: 26px; height: auto; align-self: stretch; }
+.bpm-tap:active { color: var(--accent); }
 
 /* ── BEAT LINE ── */
 .beat-line {
   display: grid;
   width: 100%;
-  align-items: center;
+  height: 10px;
+  border-top: 2px solid var(--border);
+  flex-shrink: 0;
 }
 .bl-pip {
-  width: 6px; height: 6px;
-  border-radius: 0;
+  height: 100%;
   background: var(--pip-off);
-  justify-self: center;
-  align-self: center;
-  border: 1px solid var(--pip-off);
+  border-right: 1px solid var(--border);
+  border-radius: 0;
+  box-sizing: border-box;
 }
-.bl-pip.q { width: 9px; height: 9px; background: var(--pip-off-q); border-color: var(--pip-off-q); }
-.bl-pip.lit-q  { background: var(--pip-lit); border-color: var(--pip-lit); box-shadow: none; }
-.bl-pip.lit-q.b1 { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 2px rgba(255,60,95,.3); }
-.bl-pip.lit-e  { background: var(--pip-lit-e); border-color: var(--pip-lit-e); }
-.bl-pip.lit-s  { background: var(--pip-lit-s); border-color: var(--pip-lit-s); }
-.bl-pip.lit-t  { background: var(--pip-lit-t); border-color: var(--pip-lit-t); }
+.bl-pip:last-child { border-right: none; }
+.bl-pip.q { background: var(--pip-off-q); }
+.bl-pip.lit-q  { background: var(--pip-lit); }
+.bl-pip.lit-q.b1 { background: var(--accent); box-shadow: none; }
+.bl-pip.lit-e  { background: var(--pip-lit-e); }
+.bl-pip.lit-s  { background: var(--pip-lit-s); }
+.bl-pip.lit-t  { background: var(--pip-lit-t); }
 
 /* ── RIGHT COLUMN ── */
 .mc-right { flex: 1; display: flex; flex-direction: column; justify-content: space-between; padding: 8px 10px; gap: 6px; min-width: 0; }
-.mc-header { display: flex; align-items: center; gap: 4px; border-bottom: 2px solid var(--border); padding-bottom: 6px; }
-.mc-name { flex: 1; background: none; border: none; color: var(--text); font-size: 11px; font-weight: 700; outline: none; min-width: 0; text-transform: uppercase; letter-spacing: 1px; font-family: 'Space Mono', monospace; }
+.mc-name-row { display: flex; align-items: stretch; gap: 0; padding: 0; border-bottom: 2px solid var(--border); }
+.reorder-btns { display: flex; flex-direction: column; flex-shrink: 0; border-right: 2px solid var(--border); overflow: hidden; }
+.reorder-btn { background: none; border: none; border-bottom: 1.5px solid var(--border); color: var(--muted); font-size: 8px; cursor: pointer; padding: 0; line-height: 1; width: 20px; flex: 1; display: flex; align-items: center; justify-content: center; }
+.reorder-btn:last-child { border-bottom: none; }
+.reorder-btn:hover { background: var(--surface2); color: var(--text); }
+.reorder-btn:active { color: var(--accent); background: var(--surface2); }
+.mc-name { flex: 1; background: none; border: none; color: var(--text); font-size: 12px; font-weight: 700; outline: none; min-width: 0; text-transform: uppercase; letter-spacing: 1px; font-family: 'Space Mono', monospace; width: 100%; }
 .mc-name::placeholder { color: #bbb; }
 .mc-name:focus { color: var(--accent); }
 .mc-del { background: none; border: 2px solid transparent; color: #bbb; font-size: 11px; cursor: pointer; padding: 1px 4px; font-weight: 700; }
@@ -1819,11 +1825,19 @@ function buildCard(m) {
   }
   const safeName = m.name.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   return `<div class="metro-card ${r.playing?'playing':''}" id="card-${m.id}">
+    <div class="mc-name-row">
+      <div class="reorder-btns">
+        <button class="reorder-btn" onclick="moveMetro(${m.id},-1)" title="Move up">▲</button>
+        <button class="reorder-btn" onclick="moveMetro(${m.id},1)" title="Move down">▼</button>
+      </div>
+      <input class="mc-name" style="padding: 8px 6px;" value="${safeName}" placeholder="Name…" onchange="updateProp(${m.id},'name',this.value)" />
+      <button class="btn-sound ${m.sound?'on':''}" id="sndbtn-${m.id}" onclick="toggleSound(${m.id})" title="${m.sound?'Sound on':'Sound off'}" style="margin-right:2px">${m.sound?'🔊':'🔇'}</button>
+      <button class="mc-del" onclick="deleteMetro(${m.id})" style="margin-right:6px">✕</button>
+    </div>
     <div class="mc-body">
       <div class="mc-left">
         <div class="mc-inner">
           <div class="mc-top">
-            <div class="dot-area" onclick="tap(${m.id})" title="Tap tempo"><div class="dot-ring"></div><div class="dot" id="dot-${m.id}"></div></div>
             <div class="bpm-group">
               <div class="bpm-val" id="bpmval-${m.id}" contenteditable="true"
                 onblur="bpmEdit(${m.id},this.textContent)"
@@ -1832,19 +1846,17 @@ function buildCard(m) {
               <div class="bpm-unit">bpm</div>
             </div>
             <div class="bpm-btns">
-              <button class="bpm-btn" onclick="adjBPM(${m.id},1)">+</button>
-              <button class="bpm-btn" onclick="adjBPM(${m.id},-1)">−</button>
+              <div class="bpm-adj">
+                <button class="bpm-btn" onclick="adjBPM(${m.id},1)">+</button>
+                <button class="bpm-btn" onclick="adjBPM(${m.id},-1)">−</button>
+              </div>
+              <button class="bpm-btn bpm-tap" onclick="tap(${m.id})" title="Tap tempo">👆</button>
             </div>
           </div>
-          <div class="beat-line" id="bl-${m.id}" style="grid-template-columns:repeat(${totalPips},1fr)">${pipsHTML}</div>
         </div>
+        <div class="beat-line" id="bl-${m.id}" style="grid-template-columns:repeat(${totalPips},1fr)">${pipsHTML}</div>
       </div>
       <div class="mc-right">
-        <div class="mc-header">
-          <input class="mc-name" value="${safeName}" placeholder="Name…" onchange="updateProp(${m.id},'name',this.value)" />
-          <button class="btn-sound ${m.sound?'on':''}" id="sndbtn-${m.id}" onclick="toggleSound(${m.id})" title="${m.sound?'Sound on':'Sound off'}">${m.sound?'🔊':'🔇'}</button>
-          <button class="mc-del" onclick="deleteMetro(${m.id})">✕</button>
-        </div>
         <div class="mc-opts">
           <div class="subdiv-btns">
             ${[1,2,3,4].map(s=>`<button class="sdv ${m.subdiv===s?'on':''}" onclick="updateProp(${m.id},'subdiv',${s})">${s===1?'♩':s===2?'♪':s===3?'³':'♬'}</button>`).join('')}
@@ -1886,8 +1898,8 @@ function fireBeat(id, m) {
   const isQ = r.pipIdx % m.subdiv === 0, isB1 = r.pipIdx === 0;
   if (m.sound) playClick(isB1, isQ);
   if (isQ) {
-    const dot = document.getElementById('dot-' + id);
-    if (dot) { dot.classList.remove('pulse','b1'); void dot.offsetWidth; dot.classList.add('pulse'); if (isB1) dot.classList.add('b1'); }
+    const bpmEl = document.getElementById('bpmval-' + id);
+    if (bpmEl) { bpmEl.classList.remove('pulse','b1'); void bpmEl.offsetWidth; bpmEl.classList.add('pulse'); if (isB1) bpmEl.classList.add('b1'); }
   }
   const bl = document.getElementById('bl-' + id);
   if (bl) {
@@ -1930,8 +1942,8 @@ function bpmEdit(id, raw) {
 }
 function tap(id) {
   const r = rtOf(id), now = Date.now();
-  const dotEl = document.getElementById('dot-' + id);
-  if (dotEl) { dotEl.classList.remove('tapped'); void dotEl.offsetWidth; dotEl.classList.add('tapped'); }
+  const bpmEl = document.getElementById('bpmval-' + id);
+  if (bpmEl) { bpmEl.classList.remove('tapped'); void bpmEl.offsetWidth; bpmEl.classList.add('tapped'); }
   r.lastTaps.push(now); if (r.lastTaps.length > 6) r.lastTaps.shift();
   if (r.lastTaps.length < 2) return;
   const avg = r.lastTaps.slice(1).reduce((a,t,i)=>a+(t-r.lastTaps[i]),0)/(r.lastTaps.length-1);
@@ -1939,6 +1951,17 @@ function tap(id) {
   m.bpm = Math.max(20, Math.min(300, Math.round(60000/avg))); save();
   document.getElementById('bpmval-'+id).textContent = m.bpm;
   if (r.playing) { clearTimeout(r.timerId); r.pipIdx = -1; tick(id); }
+}
+function moveMetro(id, dir) {
+  const idx = metros.findIndex(m => m.id === id);
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= metros.length) return;
+  [metros[idx], metros[newIdx]] = [metros[newIdx], metros[idx]];
+  save();
+  const playing = metros.filter(m => rtOf(m.id).playing).map(m => m.id);
+  render();
+  playing.forEach(id => startMetro(id));
+  document.getElementById('card-' + id)?.scrollIntoView({ block: 'nearest' });
 }
 function addMetro(name = '', bpm = 120) {
   const m = { id: nid++, name, bpm, ts: 4, subdiv: 2, sound: false };
